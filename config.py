@@ -15,3 +15,6 @@ PLEX_CLIENT_TRIGGER_NAME = ''
 
 # The lighting group that should be triggered
 WINK_ACTION_GROUP = ''
+
+# The path to your plex server including port
+PLEX_HTTP_PATH = '127.0.0.1:32400'
