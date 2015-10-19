@@ -94,7 +94,7 @@ def is_plex_stopped(plex_status):
 def get_plex_status():
     global ACCESS_TOKEN, CURRENT_STATUS
     headers = {'X-Plex-Token': ACCESS_TOKEN, 'X-Plex-Client-Identifier': 'PlexWink'}
-    r = requests.get('http://192.168.1.2:32400/status/sessions', headers=headers)
+    r = requests.get('http://' + config.PLEX_HTTP_PATH + '/status/sessions', headers=headers)
     e = ElementTree.fromstring(r.text.encode('utf-8'))
 
     return e
