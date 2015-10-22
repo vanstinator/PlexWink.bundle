@@ -147,13 +147,13 @@ print('Listening for playing items')
 while True:
     plex_status = get_plex_status()
     if is_plex_playing(plex_status):
-        print 'Something is playing on ' + config.PLEX_CLIENT_TRIGGER_NAME + ' turning off lights'
+        print 'Something is playing turning off lights'
         turn_off_lights()
     elif is_plex_paused(plex_status):
-        print 'Something is paused on ' + config.PLEX_CLIENT_TRIGGER_NAME + ' dimming lights'
+        print 'Something is paused dimming lights'
         dim_lights()
     elif is_plex_stopped(plex_status):
-        print 'Nothing is playing on ' + config.PLEX_CLIENT_TRIGGER_NAME + ' turning on lights'
+        print 'Nothing is playing turning on lights'
         turn_on_lights()
 
     sleep(2)
