@@ -13,7 +13,7 @@
 #
 # Author: Justin Vanderhooft
 # Date: October 19, 2015
-# Version 1.0
+# Version 1.1.0
 
 import requests
 import json
@@ -24,7 +24,6 @@ import config
 ACCESS_TOKEN = ''
 
 CURRENT_STATUS = ''
-
 
 def get_wink_token():
     auth_string = {'client_id': config.WINK_CLIENT_ID, 'client_secret': config.WINK_CLIENT_SECRET,
@@ -39,14 +38,18 @@ def get_wink_token():
 
 
 def get_wink_light_groups():
+    global WINK_GROUP_IDS
+    array = []
     headers = {'Authorization': 'Bearer ' + access_token}
     r = requests.get("https://winkapi.quirky.com/users/me/groups", headers=headers);
     json_object = json.loads(r.text)
 
     for group in json_object['data']:
-        if group['name'] == config.WINK_ACTION_GROUP:
-            return group['group_id']
+        for local_group in config.WINK_ACTION_GROUPS:
+            if group['name'] == local_group:
+                array.append(group['group_id'])
 
+    return array
 
 def get_plex_token():
     auth = {'user[login]': config.PLEX_USERNAME, 'user[password]': config.PLEX_PASSWORD}
@@ -61,9 +64,13 @@ def get_plex_token():
 def is_plex_playing(plex_status):
     global CURRENT_STATUS
     for item in plex_status.findall('Video'):
-        if item.find('Player').get('title') == config.PLEX_CLIENT_TRIGGER_NAME and item.find('Player').get('state') == 'playing' and CURRENT_STATUS != item.find('Player').get('state'):
-            CURRENT_STATUS = item.find('Player').get('state')
-            return True;
+        for client_name in config.PLEX_CLIENTS:
+            if item.find('Player').get('title') == client_name:
+                for username in config.PLEX_AUTHORIZED_USERS:
+                    if item.find('User').get('title') == username:
+                       if item.find('Player').get('state') == 'playing' and CURRENT_STATUS != item.find('Player').get('state'):
+                            CURRENT_STATUS = item.find('Player').get('state')
+                            return True;
 
     return False
 
@@ -71,9 +78,14 @@ def is_plex_playing(plex_status):
 def is_plex_paused(plex_status):
     global CURRENT_STATUS
     for item in plex_status.findall('Video'):
-        if item.find('Player').get('title') == config.PLEX_CLIENT_TRIGGER_NAME and item.find('Player').get('state') == 'paused' and CURRENT_STATUS != item.find('Player').get('state'):
-            CURRENT_STATUS = item.find('Player').get('state')
-            return True;
+        for client_name in config.PLEX_CLIENTS:
+            if item.find('Player').get('title') == client_name:
+                for username in config.PLEX_AUTHORIZED_USERS:
+                    if item.find('User').get('title') == username:
+                        if item.find('Player').get('state') == 'paused' and CURRENT_STATUS != item.find('Player').get('state'):
+                            CURRENT_STATUS = item.find('Player').get('state')
+                            return True;
+
 
     return False
 
@@ -81,8 +93,11 @@ def is_plex_paused(plex_status):
 def is_plex_stopped(plex_status):
     global CURRENT_STATUS
     for item in plex_status.findall('Video'):
-        if item.find('Player').get('title') == config.PLEX_CLIENT_TRIGGER_NAME or CURRENT_STATUS == 'stopped':
-            return False;
+        for client_name in config.PLEX_CLIENTS:
+            if item.find('Player').get('title') == client_name:
+                for username in config.PLEX_AUTHORIZED_USERS:
+                    if item.find('User').get('title') == username or CURRENT_STATUS == 'stopped':
+                        return False;
 
     if CURRENT_STATUS == 'stopped':
         return False;
@@ -120,14 +135,14 @@ def dim_lights():
 def update_light_state(powered, brightness):
     headers = {'Authorization': 'Bearer ' + access_token}
     state_string = {'desired_state': {'brightness': brightness, 'powered': powered}};
-    requests.post("https://winkapi.quirky.com/groups/" + get_wink_light_groups() + "/activate", json=state_string,
-                  headers=headers);
+    for group_id in get_wink_light_groups():
+        requests.post("https://winkapi.quirky.com/groups/" + group_id + "/activate", json=state_string,headers=headers);
 
 
 access_token = get_wink_token()
 ACCESS_TOKEN = get_plex_token()
 
-print('Listening for playing items on ' + config.PLEX_CLIENT_TRIGGER_NAME)
+print('Listening for playing items')
 
 while True:
     plex_status = get_plex_status()
