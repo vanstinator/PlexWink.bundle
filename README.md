@@ -5,7 +5,7 @@ I picked up a Wink starter kit last week to automate the lights in my living/tv 
 
 
 **Behavior**
-The script polls Plex every 2 seconds. If it detects an item is playing it behaves differently depending on the state.
+The script attaches to the Plex Notification web socket. If it receives a playing notification it checks if it's a video, the client name, and the user who owns the stream. If it matches your criteria it triggers these actions.
 
 * Playing - Dim the lights, and then shut them off
 * Paused - Dim the lights
@@ -14,23 +14,19 @@ The script polls Plex every 2 seconds. If it detects an item is playing it behav
 
 
 **Requirements**
-
 * Python 2.7.X
 * Requests - `pip install requests`
+* websocket-client - `pip install websocket-client`
 * Code - https://github.com/vanstinator/PlexWink
 
 The config file is pretty simple. Fill out your plex login credentials, your wink credentials, and your wink API credentials. You can get the API keys by email support@winkapp.com and asking for a set.
 
-`PLEX_CLIENT_TRIGGER_NAME` is the name of the client to monitor. Mine is just 'Living Room'
+`PLEX_CLIENTs` is the list of names of the clients to monitor. Mine are ['Living Room', 'PlexMediaPlayer']
 
-`WINK_ACTION_GROUP` is the Wink group name for your light bulbs. Mine is 'Entryway Hallway'
+`WINK_ACTION_GROUPS` is the list of Wink group names for your light bulbs. Mine are ['Entryway Hallway', 'Living Room']
 
 Both of those parameters are case and white-space sensitive, so match exactly what each respective application has.
 
 **Roadmap**
-
-* Allow for multiple Plex client names
-* Specify which user it should activate for. Your brother in MN with a client named 'Living Room' shouldn't trigger your lights
-* Allow multiple Wink groups. I technically have 2 right now at home, but one of them contains my room and hallway so Plex can hit both. A bit hacky really.
 * Wink users should sympathize with this, but sometimes a bulb gets "stuck". So I'm planning to add some logic to check for that and force it to the correct state.
 * Any other user requested things I don't think of.
