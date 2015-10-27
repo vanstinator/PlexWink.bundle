@@ -23,7 +23,7 @@ The config file is pretty simple. Fill out your plex login credentials, your win
 
 `PLEX_CLIENTs` is the list of names of the clients to monitor. Mine are ['Living Room', 'PlexMediaPlayer']
 
-`WINK_ACTION_GROUP` is the list of Wink group names for your light bulbs. Mine are ['Entryway Hallway', 'Living Room']
+`WINK_ACTION_GROUPS` is the list of Wink group names for your light bulbs. Mine are ['Entryway Hallway', 'Living Room']
 
 Both of those parameters are case and white-space sensitive, so match exactly what each respective application has.
 
