@@ -13,132 +13,100 @@
 #
 # Author: Justin Vanderhooft
 # Date: October 19, 2015
-# Version 1.0
+# Version 1.2.0
 
-import requests
-import json
+import time
 from time import sleep
-import xml.etree.ElementTree as ElementTree
 import config
+import websocket
+from python import Plex, Wink
+import logging
+import json
 
-ACCESS_TOKEN = ''
+logging.basicConfig()
+
 
 CURRENT_STATUS = ''
 
-
-def get_wink_token():
-    auth_string = {'client_id': config.WINK_CLIENT_ID, 'client_secret': config.WINK_CLIENT_SECRET,
-                   'username': config.WINK_USERNAME, 'password': config.WINK_PASSWORD,
-                   'grant_type': 'password'}
-
-    r = requests.post("https://winkapi.quirky.com/oauth2/token/", json=auth_string);
-
-    data = json.loads(r.text)
-
-    return data['access_token']
-
-
-def get_wink_light_groups():
-    headers = {'Authorization': 'Bearer ' + access_token}
-    r = requests.get("https://winkapi.quirky.com/users/me/groups", headers=headers);
-    json_object = json.loads(r.text)
-
-    for group in json_object['data']:
-        if group['name'] == config.WINK_ACTION_GROUP:
-            return group['group_id']
-
-
-def get_plex_token():
-    auth = {'user[login]': config.PLEX_USERNAME, 'user[password]': config.PLEX_PASSWORD}
-    headers = {'X-Plex-Client-Identifier': 'PlexWink'}
-    r = requests.post('https://plex.tv/users/sign_in.json', params=auth, headers=headers)
-
-    data = json.loads(r.text)
-
-    return data['user']['authentication_token']
+plex = Plex.Plex()
+wink = Wink.Wink()
 
 
 def is_plex_playing(plex_status):
     global CURRENT_STATUS
     for item in plex_status.findall('Video'):
-        if item.find('Player').get('title') == config.PLEX_CLIENT_TRIGGER_NAME and item.find('Player').get('state') == 'playing' and CURRENT_STATUS != item.find('Player').get('state'):
-            CURRENT_STATUS = item.find('Player').get('state')
-            return True;
+        for client_name in config.PLEX_CLIENTS:
+            if item.find('Player').get('title') == client_name:
+                for username in config.PLEX_AUTHORIZED_USERS:
+                    if item.find('User').get('title') == username:
+                        if item.find('Player').get('state') == 'playing' and CURRENT_STATUS != item.find('Player').get('state'):
+                            CURRENT_STATUS = item.find('Player').get('state')
+                            print(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (item.find('User').get('title'), CURRENT_STATUS, item.get('grandparentTitle'), item.get('title'), client_name))
+                            turn_off_lights()
+                            return False
+                        elif item.find('Player').get('state') == 'paused' and CURRENT_STATUS != item.find('Player').get('state'):
+                            CURRENT_STATUS = item.find('Player').get('state')
+                            print(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (item.find('User').get('title'), CURRENT_STATUS, item.get('grandparentTitle'), item.get('title'), client_name))
+                            dim_lights()
+                            return False
+                        else:
+                            return False
 
-    return False
-
-
-def is_plex_paused(plex_status):
-    global CURRENT_STATUS
-    for item in plex_status.findall('Video'):
-        if item.find('Player').get('title') == config.PLEX_CLIENT_TRIGGER_NAME and item.find('Player').get('state') == 'paused' and CURRENT_STATUS != item.find('Player').get('state'):
-            CURRENT_STATUS = item.find('Player').get('state')
-            return True;
-
-    return False
-
-
-def is_plex_stopped(plex_status):
-    global CURRENT_STATUS
-    for item in plex_status.findall('Video'):
-        if item.find('Player').get('title') == config.PLEX_CLIENT_TRIGGER_NAME or CURRENT_STATUS == 'stopped':
-            return False;
 
     if CURRENT_STATUS == 'stopped':
-        return False;
+        return False
+
 
     CURRENT_STATUS = 'stopped'
-    return True
+    print(time.strftime("%I:%M:%S") + " - Playback stopped");
+    turn_on_lights()
 
 
-def get_plex_status():
-    global ACCESS_TOKEN, CURRENT_STATUS
-    headers = {'X-Plex-Token': ACCESS_TOKEN, 'X-Plex-Client-Identifier': 'PlexWink'}
-    r = requests.get('http://192.168.1.2:32400/status/sessions', headers=headers)
-    e = ElementTree.fromstring(r.text.encode('utf-8'))
-
-    return e
 
 
 def turn_off_lights():
-    update_light_state(True, 0)
+    wink.update_light_state(True, 0)
     sleep(2)
-    update_light_state(False, 0)
+    wink.update_light_state(False, 0)
     pass
 
 
 def turn_on_lights():
-    update_light_state(True, 1)
+    wink.update_light_state(True, 1)
     pass
 
 
 def dim_lights():
-    update_light_state(True, 0)
+    wink.update_light_state(True, 0)
     pass
 
 
-def update_light_state(powered, brightness):
-    headers = {'Authorization': 'Bearer ' + access_token}
-    state_string = {'desired_state': {'brightness': brightness, 'powered': powered}};
-    requests.post("https://winkapi.quirky.com/groups/" + get_wink_light_groups() + "/activate", json=state_string,
-                  headers=headers);
+def on_message(ws, message):
+    json_object = json.loads(message)
+    if json_object['type'] == 'playing':
+        plex_status = plex.get_plex_status()
+
+        # if json_object['_children'][0]['state'] == 'playing':
+        is_plex_playing(plex_status)
+        # turn_off_lights()
+
+        # elif json_object['_children'][0]['state'] == 'paused':
+        #     if is_plex_paused(plex_status):
+        #         dim_lights()
+        #
+        # elif json_object['_children'][0]['state'] == 'stopped':
+        #     if is_plex_stopped(plex_status):
+        #         turn_on_lights()
 
 
-access_token = get_wink_token()
-ACCESS_TOKEN = get_plex_token()
+if __name__ == "__main__":
 
-print('Listening for playing items on ' + config.PLEX_CLIENT_TRIGGER_NAME)
+    print('Listening for playing items')
+    # websocket.enableTrace(True)
+    ws = websocket.WebSocketApp("ws://127.0.0.1:32400/:/websockets/notifications?X-Plex-Token=" + plex.ACCESS_TOKEN,
+                              on_message = on_message)
+                              # on_error = on_error,
+                              # on_close = on_close)
 
-while True:
-    plex_status = get_plex_status()
-    if is_plex_playing(plex_status):
-        print 'Something is playing on ' + config.PLEX_CLIENT_TRIGGER_NAME + ' turning off lights'
-        turn_off_lights()
-    elif is_plex_paused(plex_status):
-        print 'Something is paused on ' + config.PLEX_CLIENT_TRIGGER_NAME + ' dimming lights'
-        dim_lights()
-    elif is_plex_stopped(plex_status):
-        print 'Nothing is playing on ' + config.PLEX_CLIENT_TRIGGER_NAME + ' turning on lights'
-        turn_on_lights()
-
-    sleep(2)
+    # ws.on_open = on_open
+    ws.run_forever()
