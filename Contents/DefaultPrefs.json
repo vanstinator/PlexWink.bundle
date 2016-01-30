@@ -1,0 +1,66 @@
+[
+  {
+    "id": "PLEX_USERNAME",
+    "label": "Plex.tv Login",
+    "type": "text",
+    "default": "PLEX_USERNAME"
+  },
+  {
+    "id": "PLEX_PASSWORD",
+    "label": "Plex.TV password",
+    "type": "text",
+    "option": "hidden",
+    "default": "",
+    "secure": "true"
+  },
+  {
+    "id": "PLEX_HTTP_PATH",
+    "label": "The path to your plex server including port",
+    "type": "text",
+    "default": "'127.0.0.1:32400'"
+  },
+  {
+    "id": "WINK_USERNAME",
+    "label": "Wink App Login",
+    "type": "text",
+    "default": "WINK_USERNAME"
+  },
+  {
+    "id": "WINK_PASSWORD",
+    "label": "Wink App password",
+    "type": "text",
+    "option": "hidden",
+    "default": "",
+    "secure": "true"
+  },
+  {
+    "id": "WINK_CLIENT_ID",
+    "label": "Wink Client ID",
+    "type": "text",
+    "default": "WINK_CLIENT_ID"
+  },
+  {
+    "id": "WINK_CLIENT_SECRET",
+    "label": "Wink Client Secret",
+    "type": "text",
+    "default": "WINK_CLIENT_SECRET"
+  },
+  {
+    "id": "PLEX_CLIENTS",
+    "label": "The names of the clients that should trigger a lighting event",
+    "type": "text",
+    "default": "client1,client2"
+  },
+  {
+    "id": "WINK_ACTION_GROUPS",
+    "label": "The lighting groups that should be triggered",
+    "type": "text",
+    "default": "lightgroup1,lightgroup2"
+  },
+  {
+    "id": "PLEX_AUTHORIZED_USERS",
+    "label": "List of usernames that should trigger the lighting event",
+    "type": "text",
+    "default": "user1,user2"
+  }
+]
