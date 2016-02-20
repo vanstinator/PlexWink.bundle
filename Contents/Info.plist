@@ -13,8 +13,6 @@
       <array>
         <string>NoURLServices</string>
       </array>
-    <key>PlexPluginMode</key>
-    <string>Daemon</string>
     <key>PlexPluginConsoleLogging</key>
     <string>1</string>
   </dict>
