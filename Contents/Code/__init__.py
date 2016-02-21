@@ -60,8 +60,8 @@ def MainMenu(header=NAME, message="Hello"):
         oc.add(InputDirectoryObject(key=Callback(CreateRoom), title=("Create a Room"), prompt='Please enter a room name',
                                     thumb=R('hellohue.png')
                                     ))
-    for room in rooms:
-        oc.add(PopupDirectoryObject(key=Callback(EditRoom, uuid=room['uuid']), title=room['name'], thumb=R('hellohue.png')))
+    for key, value in rooms.iteritems():
+        oc.add(PopupDirectoryObject(key=Callback(EditRoom, uuid=key), title=value['name'], thumb=R('hellohue.png')))
     if not is_socket_thread_running():
         oc.add(PopupDirectoryObject(key=Callback(ToggleState), title='Enable PlexWink', thumb=R('hellohue.png')))
     if is_socket_thread_running():
@@ -80,51 +80,108 @@ def MainMenu(header=NAME, message="Hello"):
 def CreateRoom(query=""):
     room = dict()
     room['name'] = query
-    room['uuid'] = String.UUID()
-    rooms.append(room)
+    rooms[String.UUID()] = room
     Data.SaveObject("rooms", rooms)
     return MainMenu(message="Creating a new Room named: " + query)
 
 
 @route(PREFIX + '/EditRoom')
 def EditRoom(uuid):
-    this_room = None
-    for room in rooms:
-        if uuid == room['uuid']:
-            this_room = room
+    room = rooms[uuid]
     oc = ObjectContainer(no_cache=True, no_history=True, replace_parent=True)
-    oc.header = this_room['name']
-    oc.add(PopupDirectoryObject(key=Callback(SetupLightGroup), title='Select a lighting group for this room', thumb=R('hellohue.png')))
-    oc.add(PopupDirectoryObject(key=Callback(SelectUsers), title='Select some users for this room', thumb=R('hellohue.png')))
-    oc.add(PopupDirectoryObject(key=Callback(SelectDevices), title='Select some devices for this room', thumb=R('hellohue.png')))
-    oc.add(PopupDirectoryObject(key=Callback(RemoveRoom, uuid=uuid), title='Delete Room', thumb=R('hellohue.png')))
+    oc.header = room['name']
+    if not 'lights' in room:
+        lights = list()
+        rooms[uuid]['lights'] = lights
+
+    if not 'devices' in room:
+        devices = list()
+        rooms[uuid]['devices'] = devices
+
+    Data.SaveObject("rooms", rooms)
+
+    oc.add(PopupDirectoryObject(key=Callback(SetupLightGroup, uuid=uuid),
+                                title='Select a lighting group for this room',
+                                thumb=R('hellohue.png')))
+
+    oc.add(PopupDirectoryObject(key=Callback(SetupDevices, uuid=uuid),
+                                title='Pick device triggers',
+                                thumb=R('hellohue.png')))
+
+    oc.add(PopupDirectoryObject(key=Callback(RemoveRoom, uuid=uuid),
+                                title='Delete Room',
+                                thumb=R('hellohue.png')))
     return oc
 
 @route(PREFIX + '/SetupLightGroup')
-def SetupLightGroup():
+def SetupLightGroup(uuid):
     oc = ObjectContainer(no_cache=True, no_history=True, replace_parent=True)
+    oc.message = "Please select the following "
+    rooms = Data.LoadObject("rooms")
+    for group in wink.get_wink_groups():
+        # Wink sometimes has empty groups returned by the API. This will check for hub ownership for each group
+        # and only display those with a hub attached.
+        if group['members']:
+            if group['group_id'] in rooms[uuid]['lights']:
+                oc.add(PopupDirectoryObject(key=Callback(RemoveLightGroup,
+                                            uuid=uuid,
+                                            group_id=group['group_id']),
+                                            title="Remove " + group['name'],
+                                            thumb=R('hellohue.png')))
+            else:
+                oc.add(PopupDirectoryObject(key=Callback(AddLightGroup,
+                                            uuid=uuid,
+                                            group_id=group['group_id']),
+                                            title="Add " + group['name'],
+                                            thumb=R('hellohue.png')))
+    return oc
+
+@route(PREFIX + '/SetupDevices')
+def SetupDevices(uuid):
+    rooms = Data.LoadObject("rooms")
+    oc = ObjectContainer(no_cache=True,
+                         no_history=True,
+                         replace_parent=True)
+    for device in plex.get_plex_devices():
+        # if "player" in device.get('provides'):
+        if device.get('clientIdentifier') in rooms[uuid]['devices']:
+            oc.add(PopupDirectoryObject(key=Callback(RemoveDeviceTrigger,
+                                        uuid=uuid,
+                                        client_identifier=device.get('clientIdentifier')),
+                                        title="Remove " + device.get('name')))
+        else:
+            oc.add(PopupDirectoryObject(key=Callback(AddDeviceTrigger,
+                                        uuid=uuid,
+                                        client_identifier=device.get('clientIdentifier')),
+                                        title="Add " + device.get('name')))
     oc.message = "Please select the following "
     return oc
 
-@route(PREFIX + '/SelectUsers')
-def SelectUsers():
-    oc = ObjectContainer(no_cache=True, no_history=True, replace_parent=True)
-    oc.message = "Please select the following "
-    return oc
-
-@route(PREFIX + '/SelectDevices')
-def SelectDevices():
-    oc = ObjectContainer(no_cache=True, no_history=True, replace_parent=True)
-    oc.message = "Please select the following "
-    return oc
-
-# @route(PREFIX + '/RemoveRoom')
+@route(PREFIX + '/RemoveRoom')
 def RemoveRoom(uuid):
-    for room in rooms:
-        if uuid == room['uuid']:
-            rooms.remove(room)
+    del rooms[uuid]
     Data.SaveObject("rooms", rooms)
     return MainMenu()
+
+def AddLightGroup(uuid, group_id):
+    rooms[uuid]['lights'].append(group_id)
+    Data.SaveObject("rooms", rooms)
+    return SetupLightGroup(uuid)
+
+def AddDeviceTrigger(uuid, client_identifier):
+    rooms[uuid]['devices'].append(client_identifier)
+    Data.SaveObject("rooms", rooms)
+    return SetupDevices(uuid)
+
+def RemoveDeviceTrigger(uuid, client_identifier):
+    rooms[uuid]['devices'].remove(client_identifier)
+    Data.SaveObject("rooms", rooms)
+    return SetupDevices(uuid)
+
+def RemoveLightGroup(uuid, group_id):
+    rooms[uuid]['lights'].remove(group_id)
+    Data.SaveObject("rooms", rooms)
+    return SetupLightGroup(uuid)
 
 def TestPrompt(query=""):
     return MainMenu(header=NAME, message=query)
@@ -149,7 +206,7 @@ def ValidatePrefs():
         Log(rooms)
     else:
         Log("No existing rooms were found. Initializing empty list of rooms.")
-        rooms = list()
+        rooms = dict()
     plex = Plex()
     wink = Wink()
 
@@ -184,54 +241,53 @@ def toggle_websocket_thread():
 
 def is_plex_playing(plex_status):
     global CURRENT_STATUS
-    Log(CURRENT_STATUS)
-    for item in plex_status.findall('Video'):
-        for client_name in pattern.split(Prefs['PLEX_CLIENTS']):
-            if item.find('Player').get('title') == client_name:
-                for username in pattern.split(Prefs['PLEX_AUTHORIZED_USERS']):
-                    if item.find('User').get('title') == username:
-                        if item.find('Player').get('state') == 'playing' and CURRENT_STATUS != item.find('Player').get(
-                                'state'):
-                            CURRENT_STATUS = item.find('Player').get('state')
-                            Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
-                            item.find('User').get('title'), CURRENT_STATUS, item.get('grandparentTitle'),
-                            item.get('title'), client_name))
-                            Log('should turn off')
-                            turn_off_lights()
-                            return False
-                        elif item.find('Player').get('state') == 'paused' and CURRENT_STATUS != item.find('Player').get(
-                                'state'):
-                            CURRENT_STATUS = item.find('Player').get('state')
-                            Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
-                            item.find('User').get('title'), CURRENT_STATUS, item.get('grandparentTitle'),
-                            item.get('title'), client_name))
-                            dim_lights()
-                            return False
-                        else:
-                            return False
+    for key, value in rooms.iteritems():
+        room = value
+        for item in plex_status.findall('Video'):
+            for client_identifier in room['devices']:
+                if item.find('Player').get('machineIdentifier') == client_identifier:
+                    if item.find('Player').get('state') == 'playing' and CURRENT_STATUS != item.find('Player').get(
+                            'state'):
+                        CURRENT_STATUS = item.find('Player').get('state')
+                        Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
+                        item.find('User').get('title'), CURRENT_STATUS, item.get('grandparentTitle'),
+                        item.get('title'), client_identifier))
+                        Log('should turn off')
+                        turn_off_lights(room['lights'])
+                        return False
+                    elif item.find('Player').get('state') == 'paused' and CURRENT_STATUS != item.find('Player').get(
+                            'state'):
+                        CURRENT_STATUS = item.find('Player').get('state')
+                        Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
+                        item.find('User').get('title'), CURRENT_STATUS, item.get('grandparentTitle'),
+                        item.get('title'), client_identifier))
+                        dim_lights(room['lights'])
+                        return False
+                    else:
+                        return False
 
     if CURRENT_STATUS == 'stopped':
         return False
 
     CURRENT_STATUS = 'stopped'
     Log(time.strftime("%I:%M:%S") + " - Playback stopped")
-    turn_on_lights()
+    turn_on_lights(room['lights'])
 
 
-def turn_off_lights():
-    wink.update_light_state(True, 0)
+def turn_off_lights(lights):
+    wink.update_light_state(True, 0, lights)
     sleep(2)
-    wink.update_light_state(False, 0)
+    wink.update_light_state(False, 0, lights)
     pass
 
 
-def turn_on_lights():
-    wink.update_light_state(True, 1)
+def turn_on_lights(lights):
+    wink.update_light_state(True, 1, lights)
     pass
 
 
-def dim_lights():
-    wink.update_light_state(True, 0)
+def dim_lights(lights):
+    wink.update_light_state(True, 0, lights)
     pass
 
 
@@ -275,12 +331,15 @@ class Plex:
     """
 
     def get_plex_status(self):
-        Log('checking status')
         r = requests.get(
             'http://127.0.0.1:' + Prefs['PLEX_PORT'] + '/status/sessions?X-Plex-Token=' + PLEX_ACCESS_TOKEN,
             headers=HEADERS)
         e = ElementTree.fromstring(r.text.encode('utf-8'))
         return e
+
+    def get_plex_devices(self):
+        Log('Requesting devices from Plex')
+        return XML.ElementFromURL(url="https://www.plex.tv/devices.xml?X-Plex-Token=" + PLEX_ACCESS_TOKEN, headers=HEADERS, cacheTime=360)
 
 
 class Wink:
@@ -291,7 +350,7 @@ class Wink:
         pattern = re.compile("^\s+|\s*,\s*|\s+$")
         global WINK_ACCESS_TOKEN, LIGHT_GROUPS
         WINK_ACCESS_TOKEN = self.get_wink_token()
-        LIGHT_GROUPS = self.get_wink_light_groups()
+        LIGHT_GROUPS = self.get_wink_light_group_ids()
 
     def get_wink_token(self):
         auth_string = {'client_id': Prefs['WINK_CLIENT_ID'],
@@ -306,7 +365,7 @@ class Wink:
 
         return data['access_token']
 
-    def get_wink_light_groups(self):
+    def get_wink_light_group_ids(self):
         array = []
         headers = {'Authorization': 'Bearer ' + WINK_ACCESS_TOKEN}
         r = requests.get("https://winkapi.quirky.com/users/me/groups", headers=headers)
@@ -319,13 +378,25 @@ class Wink:
 
         return array
 
-    def update_light_state(self, powered, brightness):
+    def get_wink_groups(self):
+        array = []
+        headers = {'Authorization': 'Bearer ' + WINK_ACCESS_TOKEN}
+        r = requests.get("https://winkapi.quirky.com/users/me/groups", headers=headers)
+        json_object = json.loads(r.text)
+        # for group in json_object['data']:
+        #     for local_group in pattern.split(Prefs['WINK_ACTION_GROUPS']):
+        #         if group['name'] == local_group:
+        #             array.append(group['group_id'])
+
+        return json_object['data']
+
+    def update_light_state(self, powered, brightness, lights):
         headers = {'Authorization': 'Bearer ' + WINK_ACCESS_TOKEN}
         state_string = {'desired_state': {'brightness': brightness, 'powered': powered}}
-        for group_id in LIGHT_GROUPS:
+        for group_id in lights:
             Log(time.strftime(
                 "%I:%M:%S") + " - changing light group %s powered state to %s and brightness state to %s" % (group_id,
                                                                                                              "ON" if powered else "OFF",
                                                                                                              "DIM" if brightness == 0 else "FULL"))
             requests.post("https://winkapi.quirky.com/groups/" + group_id + "/activate", json=state_string,
-                          headers=headers);
+                          headers=headers)
