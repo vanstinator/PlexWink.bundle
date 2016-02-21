@@ -237,7 +237,6 @@ def is_plex_playing(plex_status, room, uuid):
     global CURRENT_STATUS
     if uuid not in CURRENT_STATUS:
         CURRENT_STATUS[uuid] = 'stopped'
-    Log("################ Made it this far")
     for item in plex_status.findall('Video'):
         for client_identifier in room['devices']:
             if item.find('Player').get('machineIdentifier') == client_identifier:
