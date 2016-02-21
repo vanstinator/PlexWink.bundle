@@ -24,7 +24,7 @@ THREAD_WEBSOCKET = "thread_websocket";
 THREAD_CLIENTS = "thread_clients";
 DUMB_KEYBOARD_CLIENTS = ['Plex for iOS', 'Plex Media Player', 'Plex Home Theater', 'OpenPHT', 'Plex for Roku', 'iOS', 'Roku', 'tvOS' 'Konvergo']
 
-CURRENT_STATUS = 'stopped'
+CURRENT_STATUS = dict()
 
 
 ####################################################################################################
@@ -37,7 +37,7 @@ def Start():
     ObjectContainer.art = R(ART)
     ValidatePrefs()
     if not is_socket_thread_running():
-        toggle_websocket_thread()
+        toggle_socket_thread()
 
 
 ####################################################################################################
@@ -49,31 +49,18 @@ def MainMenu(header=NAME, message="Hello"):
     if message is not "Hello":
         oc.header = header
         oc.message = message
-
     if Client.Product in DUMB_KEYBOARD_CLIENTS or Client.Platform in DUMB_KEYBOARD_CLIENTS:
         Log.Debug("Client does not support Input. Using DumbKeyboard")
-        DumbKeyboard(PREFIX, oc, CreateRoom,
-                     dktitle="Test",
-                     dkthumb=R('hellohue.png')
-                     )
+        DumbKeyboard(PREFIX, oc, CreateRoom, dktitle="Create a Room")
     else:
-        oc.add(InputDirectoryObject(key=Callback(CreateRoom), title=("Create a Room"), prompt='Please enter a room name',
-                                    thumb=R('hellohue.png')
-                                    ))
+        oc.add(InputDirectoryObject(key=Callback(CreateRoom), title=("Create a Room"), prompt='Please enter a room name'))
     for key, value in rooms.iteritems():
-        oc.add(PopupDirectoryObject(key=Callback(EditRoom, uuid=key), title=value['name'], thumb=R('hellohue.png')))
+        oc.add(DirectoryObject(key=Callback(EditRoom, uuid=key), title=value['name'], thumb=R('hellohue.png')))
     if not is_socket_thread_running():
-        oc.add(PopupDirectoryObject(key=Callback(ToggleState), title='Enable PlexWink', thumb=R('hellohue.png')))
+        oc.add(DirectoryObject(key=Callback(ToggleState), title='Enable PlexWink', thumb=R('hellohue.png')))
     if is_socket_thread_running():
-        oc.add(PopupDirectoryObject(key=Callback(ToggleState), title='Disable PlexWink', thumb=R('hellohue.png')))
-        # oc.add(DirectoryObject(key=Callback(MyLights), title='My Lights', thumb=R(PREFS_ICON)))
-        # if "thread_websocket" in str(threading.enumerate()):
-        #     oc.add(DisableHelloHue())
-        # if not "thread_websocket" in str(threading.enumerate()):
-        #     oc.add(EnableHelloHue())
-        # oc.add(DirectoryObject(key=Callback(AdvancedMenu), title='Advanced Menu', thumb=R(PREFS_ICON)))
-        # Add item for setting preferences
-        oc.add(PrefsObject(title=L('Preferences'), thumb=R(PREFS_ICON)))
+        oc.add(DirectoryObject(key=Callback(ToggleState), title='Disable PlexWink', thumb=R('hellohue.png')))
+        # oc.add(PrefsObject(title=L('Preferences'), thumb=R(PREFS_ICON))) TODO add new auth check
     return oc
 
 @route(PREFIX + '/CreateRoom')
@@ -86,10 +73,12 @@ def CreateRoom(query=""):
 
 
 @route(PREFIX + '/EditRoom')
-def EditRoom(uuid):
+def EditRoom(uuid, message=""):
     room = rooms[uuid]
     oc = ObjectContainer(no_cache=True, no_history=True, replace_parent=True)
-    oc.header = room['name']
+    if message != "":
+        oc.message = ""
+    oc.header = message
     if not 'lights' in room:
         lights = list()
         rooms[uuid]['lights'] = lights
@@ -100,21 +89,19 @@ def EditRoom(uuid):
 
     Data.SaveObject("rooms", rooms)
 
-    oc.add(PopupDirectoryObject(key=Callback(SetupLightGroup, uuid=uuid),
-                                title='Select a lighting group for this room',
-                                thumb=R('hellohue.png')))
+    oc.add(DirectoryObject(key=Callback(SetupLights, uuid=uuid),
+                           title='Select lights'))
 
-    oc.add(PopupDirectoryObject(key=Callback(SetupDevices, uuid=uuid),
-                                title='Pick device triggers',
-                                thumb=R('hellohue.png')))
+    oc.add(DirectoryObject(key=Callback(SetupDevices, uuid=uuid),
+                           title='Select players'))
 
-    oc.add(PopupDirectoryObject(key=Callback(RemoveRoom, uuid=uuid),
-                                title='Delete Room',
-                                thumb=R('hellohue.png')))
+    oc.add(DirectoryObject(key=Callback(RemoveRoom, uuid=uuid),
+                           title='Delete Room'))
     return oc
 
-@route(PREFIX + '/SetupLightGroup')
-def SetupLightGroup(uuid):
+
+@route(PREFIX + '/SetupLights')
+def SetupLights(uuid):
     oc = ObjectContainer(no_cache=True, no_history=True, replace_parent=True)
     oc.message = "Please select the following "
     rooms = Data.LoadObject("rooms")
@@ -123,18 +110,19 @@ def SetupLightGroup(uuid):
         # and only display those with a hub attached.
         if group['members']:
             if group['group_id'] in rooms[uuid]['lights']:
-                oc.add(PopupDirectoryObject(key=Callback(RemoveLightGroup,
+                oc.add(DirectoryObject(key=Callback(RemoveLightGroup,
                                             uuid=uuid,
                                             group_id=group['group_id']),
                                             title="Remove " + group['name'],
                                             thumb=R('hellohue.png')))
             else:
-                oc.add(PopupDirectoryObject(key=Callback(AddLightGroup,
+                oc.add(DirectoryObject(key=Callback(AddLightGroup,
                                             uuid=uuid,
                                             group_id=group['group_id']),
                                             title="Add " + group['name'],
                                             thumb=R('hellohue.png')))
     return oc
+
 
 @route(PREFIX + '/SetupDevices')
 def SetupDevices(uuid):
@@ -145,17 +133,18 @@ def SetupDevices(uuid):
     for device in plex.get_plex_devices():
         # if "player" in device.get('provides'):
         if device.get('clientIdentifier') in rooms[uuid]['devices']:
-            oc.add(PopupDirectoryObject(key=Callback(RemoveDeviceTrigger,
+            oc.add(DirectoryObject(key=Callback(RemoveDeviceTrigger,
                                         uuid=uuid,
                                         client_identifier=device.get('clientIdentifier')),
                                         title="Remove " + device.get('name')))
         else:
-            oc.add(PopupDirectoryObject(key=Callback(AddDeviceTrigger,
+            oc.add(DirectoryObject(key=Callback(AddDeviceTrigger,
                                         uuid=uuid,
                                         client_identifier=device.get('clientIdentifier')),
                                         title="Add " + device.get('name')))
     oc.message = "Please select the following "
     return oc
+
 
 @route(PREFIX + '/RemoveRoom')
 def RemoveRoom(uuid):
@@ -163,32 +152,37 @@ def RemoveRoom(uuid):
     Data.SaveObject("rooms", rooms)
     return MainMenu()
 
+
+@route(PREFIX + '/AddLightGroup')
 def AddLightGroup(uuid, group_id):
     rooms[uuid]['lights'].append(group_id)
     Data.SaveObject("rooms", rooms)
-    return SetupLightGroup(uuid)
+    return EditRoom(uuid, message="Added light group: " + group_id)
 
+
+@route(PREFIX + '/AddDeviceTrigger')
 def AddDeviceTrigger(uuid, client_identifier):
     rooms[uuid]['devices'].append(client_identifier)
     Data.SaveObject("rooms", rooms)
-    return SetupDevices(uuid)
+    return EditRoom(uuid, message="Added device: " + client_identifier)
 
+
+@route(PREFIX + '/RemoveDeviceTrigger')
 def RemoveDeviceTrigger(uuid, client_identifier):
     rooms[uuid]['devices'].remove(client_identifier)
     Data.SaveObject("rooms", rooms)
-    return SetupDevices(uuid)
+    return EditRoom(uuid, message="Removed device: " + client_identifier)
 
+
+@route(PREFIX + '/RemoveLightGroup')
 def RemoveLightGroup(uuid, group_id):
     rooms[uuid]['lights'].remove(group_id)
     Data.SaveObject("rooms", rooms)
-    return SetupLightGroup(uuid)
-
-def TestPrompt(query=""):
-    return MainMenu(header=NAME, message=query)
+    return EditRoom(uuid, message="Removed light group: " + group_id)
 
 
 def ToggleState():
-    toggle_websocket_thread()
+    toggle_socket_thread()
     return MainMenu()
 
 
@@ -229,7 +223,7 @@ def is_socket_thread_running():
         return False
 
 
-def toggle_websocket_thread():
+def toggle_socket_thread():
     if is_socket_thread_running():
         Log('Closing websocket thread')
         turn_on_lights()
@@ -239,37 +233,38 @@ def toggle_websocket_thread():
         threading.Thread(target=run_websocket_watcher, name=THREAD_WEBSOCKET).start()
 
 
-def is_plex_playing(plex_status):
+def is_plex_playing(plex_status, room, uuid):
     global CURRENT_STATUS
-    for key, value in rooms.iteritems():
-        room = value
-        for item in plex_status.findall('Video'):
-            for client_identifier in room['devices']:
-                if item.find('Player').get('machineIdentifier') == client_identifier:
-                    if item.find('Player').get('state') == 'playing' and CURRENT_STATUS != item.find('Player').get(
-                            'state'):
-                        CURRENT_STATUS = item.find('Player').get('state')
-                        Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
-                        item.find('User').get('title'), CURRENT_STATUS, item.get('grandparentTitle'),
-                        item.get('title'), client_identifier))
-                        Log('should turn off')
-                        turn_off_lights(room['lights'])
-                        return False
-                    elif item.find('Player').get('state') == 'paused' and CURRENT_STATUS != item.find('Player').get(
-                            'state'):
-                        CURRENT_STATUS = item.find('Player').get('state')
-                        Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
-                        item.find('User').get('title'), CURRENT_STATUS, item.get('grandparentTitle'),
-                        item.get('title'), client_identifier))
-                        dim_lights(room['lights'])
-                        return False
-                    else:
-                        return False
+    if uuid not in CURRENT_STATUS:
+        CURRENT_STATUS[uuid] = 'stopped'
+    Log("################ Made it this far")
+    for item in plex_status.findall('Video'):
+        for client_identifier in room['devices']:
+            if item.find('Player').get('machineIdentifier') == client_identifier:
+                if item.find('Player').get('state') == 'playing' and CURRENT_STATUS[uuid] != item.find('Player').get(
+                        'state'):
+                    CURRENT_STATUS[uuid] = item.find('Player').get('state')
+                    Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
+                    item.find('User').get('title'), CURRENT_STATUS[uuid], item.get('grandparentTitle'),
+                    item.get('title'), client_identifier))
+                    Log('should turn off')
+                    turn_off_lights(room['lights'])
+                    return False
+                elif item.find('Player').get('state') == 'paused' and CURRENT_STATUS[uuid] != item.find('Player').get(
+                        'state'):
+                    CURRENT_STATUS[uuid] = item.find('Player').get('state')
+                    Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
+                    item.find('User').get('title'), CURRENT_STATUS[uuid], item.get('grandparentTitle'),
+                    item.get('title'), client_identifier))
+                    dim_lights(room['lights'])
+                    return False
+                else:
+                    return False
 
-    if CURRENT_STATUS == 'stopped':
+    if CURRENT_STATUS[uuid] == 'stopped':
         return False
 
-    CURRENT_STATUS = 'stopped'
+    CURRENT_STATUS[uuid] = 'stopped'
     Log(time.strftime("%I:%M:%S") + " - Playback stopped")
     turn_on_lights(room['lights'])
 
@@ -295,7 +290,8 @@ def on_message(ws, message):
     json_object = json.loads(message)
     if json_object['type'] == 'playing':
         plex_status = plex.get_plex_status()
-        is_plex_playing(plex_status)
+        for key, value in rooms.iteritems():
+            is_plex_playing(plex_status, value, key)
 
 
 class Plex:
