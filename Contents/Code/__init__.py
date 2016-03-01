@@ -22,7 +22,8 @@ PROFILE_ICON = 'hellohue.png'
 
 THREAD_WEBSOCKET = "thread_websocket";
 THREAD_CLIENTS = "thread_clients";
-DUMB_KEYBOARD_CLIENTS = ['Plex for iOS', 'Plex Media Player', 'Plex Home Theater', 'OpenPHT', 'Plex for Roku', 'iOS', 'Roku', 'tvOS' 'Konvergo']
+DUMB_KEYBOARD_CLIENTS = ['Plex for iOS', 'Plex Media Player', 'Plex Home Theater', 'OpenPHT', 'Plex for Roku', 'iOS',
+                         'Roku', 'tvOS' 'Konvergo']
 
 CURRENT_STATUS = dict()
 
@@ -53,7 +54,8 @@ def MainMenu(header=NAME, message="Hello"):
         Log.Debug("Client does not support Input. Using DumbKeyboard")
         DumbKeyboard(PREFIX, oc, CreateRoom, dktitle="Create a Room")
     else:
-        oc.add(InputDirectoryObject(key=Callback(CreateRoom), title=("Create a Room"), prompt='Please enter a room name'))
+        oc.add(
+            InputDirectoryObject(key=Callback(CreateRoom), title=("Create a Room"), prompt='Please enter a room name'))
     for key, value in rooms.iteritems():
         oc.add(DirectoryObject(key=Callback(EditRoom, uuid=key), title=value['name'], thumb=R('hellohue.png')))
     if not is_socket_thread_running():
@@ -62,6 +64,7 @@ def MainMenu(header=NAME, message="Hello"):
         oc.add(DirectoryObject(key=Callback(ToggleState), title='Disable PlexWink', thumb=R('hellohue.png')))
         # oc.add(PrefsObject(title=L('Preferences'), thumb=R(PREFS_ICON))) TODO add new auth check
     return oc
+
 
 @route(PREFIX + '/CreateRoom')
 def CreateRoom(query=""):
@@ -108,19 +111,18 @@ def SetupLights(uuid):
     for group in wink.light_groups():
         # Wink sometimes has empty groups returned by the API. This will check for hub ownership for each group
         # and only display those with a hub attached.
-        if group['members']:
-            if group['group_id'] in rooms[uuid]['lights']:
-                oc.add(DirectoryObject(key=Callback(RemoveLightGroup,
-                                            uuid=uuid,
-                                            group_id=group['group_id']),
-                                            title="Remove " + group['name'],
-                                            thumb=R('hellohue.png')))
-            else:
-                oc.add(DirectoryObject(key=Callback(AddLightGroup,
-                                            uuid=uuid,
-                                            group_id=group['group_id']),
-                                            title="Add " + group['name'],
-                                            thumb=R('hellohue.png')))
+        if group['id'] in rooms[uuid]['lights']:
+            oc.add(DirectoryObject(key=Callback(RemoveLightGroup,
+                                                uuid=uuid,
+                                                group_id=group['id']),
+                                   title="Remove " + group['name'],
+                                   thumb=R('hellohue.png')))
+        else:
+            oc.add(DirectoryObject(key=Callback(AddLightGroup,
+                                                uuid=uuid,
+                                                group_id=group['id']),
+                                   title="Add " + group['name'],
+                                   thumb=R('hellohue.png')))
     return oc
 
 
@@ -134,14 +136,14 @@ def SetupDevices(uuid):
         # if "player" in device.get('provides'):
         if device.get('clientIdentifier') in rooms[uuid]['devices']:
             oc.add(DirectoryObject(key=Callback(RemoveDeviceTrigger,
-                                        uuid=uuid,
-                                        client_identifier=device.get('clientIdentifier')),
-                                        title="Remove " + device.get('name')))
+                                                uuid=uuid,
+                                                client_identifier=device.get('clientIdentifier')),
+                                   title="Remove " + device.get('name')))
         else:
             oc.add(DirectoryObject(key=Callback(AddDeviceTrigger,
-                                        uuid=uuid,
-                                        client_identifier=device.get('clientIdentifier')),
-                                        title="Add " + device.get('name')))
+                                                uuid=uuid,
+                                                client_identifier=device.get('clientIdentifier')),
+                                   title="Add " + device.get('name')))
     oc.message = "Please select the following "
     return oc
 
@@ -202,7 +204,8 @@ def ValidatePrefs():
         Log("No existing rooms were found. Initializing empty list of rooms.")
         rooms = dict()
     plex = Plex()
-    wink = WinkAutomation(Prefs['WINK_CLIENT_ID'], Prefs['WINK_CLIENT_SECRET'], Prefs['WINK_USERNAME'], Prefs['WINK_PASSWORD'])
+    wink = WinkAutomation(Prefs['WINK_CLIENT_ID'], Prefs['WINK_CLIENT_SECRET'], Prefs['WINK_USERNAME'],
+                          Prefs['WINK_PASSWORD'])
     wink.authenticate()
     Log('Wink connection status is ' + str(wink.is_authenticated()))
 
@@ -246,8 +249,8 @@ def is_plex_playing(plex_status, room, uuid):
                         'state'):
                     CURRENT_STATUS[uuid] = item.find('Player').get('state')
                     Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
-                    item.find('User').get('title'), CURRENT_STATUS[uuid], item.get('grandparentTitle'),
-                    item.get('title'), client_identifier))
+                        item.find('User').get('title'), CURRENT_STATUS[uuid], item.get('grandparentTitle'),
+                        item.get('title'), client_identifier))
                     Log('should turn off')
                     turn_off_lights(room['lights'])
                     return False
@@ -255,8 +258,8 @@ def is_plex_playing(plex_status, room, uuid):
                         'state'):
                     CURRENT_STATUS[uuid] = item.find('Player').get('state')
                     Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
-                    item.find('User').get('title'), CURRENT_STATUS[uuid], item.get('grandparentTitle'),
-                    item.get('title'), client_identifier))
+                        item.find('User').get('title'), CURRENT_STATUS[uuid], item.get('grandparentTitle'),
+                        item.get('title'), client_identifier))
                     dim_lights(room['lights'])
                     return False
                 else:
@@ -293,6 +296,7 @@ def on_message(ws, message):
         plex_status = plex.get_plex_status()
         for key, value in rooms.iteritems():
             is_plex_playing(plex_status, value, key)
+
 
 class Plex:
     def __init__(self):
@@ -335,4 +339,5 @@ class Plex:
 
     def get_plex_devices(self):
         Log('Requesting devices from Plex')
-        return XML.ElementFromURL(url="https://www.plex.tv/devices.xml?X-Plex-Token=" + PLEX_ACCESS_TOKEN, headers=HEADERS, cacheTime=360)
+        return XML.ElementFromURL(url="https://www.plex.tv/devices.xml?X-Plex-Token=" + PLEX_ACCESS_TOKEN,
+                                  headers=HEADERS, cacheTime=360)

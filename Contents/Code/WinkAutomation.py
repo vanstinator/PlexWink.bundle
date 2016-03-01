@@ -40,9 +40,15 @@ class WinkAutomation(Automation):
         self.auth_header = {'Authorization': 'Bearer ' + self.access_token}
 
     def light_groups(self):
+        self.p_light_groups = list()
         r = requests.get(self.service + "/users/me/groups", headers=self.auth_header)
         json_object = json.loads(r.text)
-        self.p_light_groups = json_object['data']
+        for group in json_object['data']:
+            g = dict()
+            if group['members']:
+                g['name'] = group['name']
+                g['id'] = group['group_id']
+                self.p_light_groups.append(g)
         return self.p_light_groups
 
     def group_state(self):

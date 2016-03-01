@@ -18,7 +18,7 @@ class Automation(object):
 
     def light_groups(self):
         """
-        Function will return a list of all the light groups for the authenticated account
+        Function will return a list of dicts['name', 'id'] of all the light groups for the authenticated account.
 
         :return: list
         """
