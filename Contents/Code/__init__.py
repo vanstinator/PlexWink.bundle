@@ -4,9 +4,9 @@ import requests
 import websocket
 import threading
 import xml.etree.ElementTree as ElementTree
-import logging
 import json
 import re
+from WinkAutomation import WinkAutomation
 from DumbTools import DumbKeyboard
 
 ####################################################################################################
@@ -105,7 +105,7 @@ def SetupLights(uuid):
     oc = ObjectContainer(no_cache=True, no_history=True, replace_parent=True)
     oc.message = "Please select the following "
     rooms = Data.LoadObject("rooms")
-    for group in wink.get_wink_groups():
+    for group in wink.light_groups():
         # Wink sometimes has empty groups returned by the API. This will check for hub ownership for each group
         # and only display those with a hub attached.
         if group['members']:
@@ -202,7 +202,9 @@ def ValidatePrefs():
         Log("No existing rooms were found. Initializing empty list of rooms.")
         rooms = dict()
     plex = Plex()
-    wink = Wink()
+    wink = WinkAutomation(Prefs['WINK_CLIENT_ID'], Prefs['WINK_CLIENT_SECRET'], Prefs['WINK_USERNAME'], Prefs['WINK_PASSWORD'])
+    wink.authenticate()
+    Log('Wink connection status is ' + str(wink.is_authenticated()))
 
 
 def run_websocket_watcher():
@@ -269,19 +271,19 @@ def is_plex_playing(plex_status, room, uuid):
 
 
 def turn_off_lights(lights):
-    wink.update_light_state(True, 0, lights)
+    wink.change_group_state(True, 0, lights)
     sleep(2)
-    wink.update_light_state(False, 0, lights)
+    wink.change_group_state(False, 0, lights)
     pass
 
 
 def turn_on_lights(lights):
-    wink.update_light_state(True, 1, lights)
+    wink.change_group_state(True, 1, lights)
     pass
 
 
 def dim_lights(lights):
-    wink.update_light_state(True, 0, lights)
+    wink.change_group_state(True, 0, lights)
     pass
 
 
@@ -291,7 +293,6 @@ def on_message(ws, message):
         plex_status = plex.get_plex_status()
         for key, value in rooms.iteritems():
             is_plex_playing(plex_status, value, key)
-
 
 class Plex:
     def __init__(self):
@@ -335,63 +336,3 @@ class Plex:
     def get_plex_devices(self):
         Log('Requesting devices from Plex')
         return XML.ElementFromURL(url="https://www.plex.tv/devices.xml?X-Plex-Token=" + PLEX_ACCESS_TOKEN, headers=HEADERS, cacheTime=360)
-
-
-class Wink:
-    def __init__(self):
-        global pattern
-        Log("Initializing Wink class")
-        Log("-Getting Token")
-        pattern = re.compile("^\s+|\s*,\s*|\s+$")
-        global WINK_ACCESS_TOKEN, LIGHT_GROUPS
-        WINK_ACCESS_TOKEN = self.get_wink_token()
-        LIGHT_GROUPS = self.get_wink_light_group_ids()
-
-    def get_wink_token(self):
-        auth_string = {'client_id': Prefs['WINK_CLIENT_ID'],
-                       'client_secret': Prefs['WINK_CLIENT_SECRET'],
-                       'username': Prefs['WINK_USERNAME'],
-                       'password': Prefs['WINK_PASSWORD'],
-                       'grant_type': 'password'}
-
-        r = requests.post("https://winkapi.quirky.com/oauth2/token/", json=auth_string)
-
-        data = json.loads(r.text)
-
-        return data['access_token']
-
-    def get_wink_light_group_ids(self):
-        array = []
-        headers = {'Authorization': 'Bearer ' + WINK_ACCESS_TOKEN}
-        r = requests.get("https://winkapi.quirky.com/users/me/groups", headers=headers)
-        json_object = json.loads(r.text)
-
-        for group in json_object['data']:
-            for local_group in pattern.split(Prefs['WINK_ACTION_GROUPS']):
-                if group['name'] == local_group:
-                    array.append(group['group_id'])
-
-        return array
-
-    def get_wink_groups(self):
-        array = []
-        headers = {'Authorization': 'Bearer ' + WINK_ACCESS_TOKEN}
-        r = requests.get("https://winkapi.quirky.com/users/me/groups", headers=headers)
-        json_object = json.loads(r.text)
-        # for group in json_object['data']:
-        #     for local_group in pattern.split(Prefs['WINK_ACTION_GROUPS']):
-        #         if group['name'] == local_group:
-        #             array.append(group['group_id'])
-
-        return json_object['data']
-
-    def update_light_state(self, powered, brightness, lights):
-        headers = {'Authorization': 'Bearer ' + WINK_ACCESS_TOKEN}
-        state_string = {'desired_state': {'brightness': brightness, 'powered': powered}}
-        for group_id in lights:
-            Log(time.strftime(
-                "%I:%M:%S") + " - changing light group %s powered state to %s and brightness state to %s" % (group_id,
-                                                                                                             "ON" if powered else "OFF",
-                                                                                                             "DIM" if brightness == 0 else "FULL"))
-            requests.post("https://winkapi.quirky.com/groups/" + group_id + "/activate", json=state_string,
-                          headers=headers)
