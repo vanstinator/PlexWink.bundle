@@ -17,9 +17,14 @@ class WinkAutomation(Automation):
         self.service = "https://winkapi.quirky.com"
 
         self.p_light_groups = None
-        self.group_state = None
         self.access_token = None
         self.auth_header = None
+        self.authenticate()
+        self.p_name = "Wink" # This cannot change going forward. There are quite a few things keying off this name
+
+    @property
+    def name(self):
+        return self.p_name
 
     def is_authenticated(self):
         if self.access_token:
@@ -40,6 +45,10 @@ class WinkAutomation(Automation):
         self.auth_header = {'Authorization': 'Bearer ' + self.access_token}
 
     def light_groups(self):
+        """
+        Returns all the wink groups on a user account. Only returns non-empty groups
+        :return: list[dict()]
+        """
         self.p_light_groups = list()
         r = requests.get(self.service + "/users/me/groups", headers=self.auth_header)
         json_object = json.loads(r.text)
@@ -50,9 +59,6 @@ class WinkAutomation(Automation):
                 g['id'] = group['group_id']
                 self.p_light_groups.append(g)
         return self.p_light_groups
-
-    def group_state(self):
-        pass
 
     def change_group_state(self, powered, brightness, lights):
         state_string = {'desired_state': {'brightness': brightness, 'powered': powered}}
