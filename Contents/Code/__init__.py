@@ -154,6 +154,7 @@ def ToggleRoom(uuid):
         ROOM_HANDLER[uuid]['enabled'] = True
     else:
         ROOM_HANDLER[uuid]['enabled'] = False
+        turn_on_lights(ROOM_HANDLER[uuid]['lights'])
     return EditRoom(uuid, message="Toggled Room: " + ROOM_HANDLER[uuid]['name'])
 
 
@@ -238,7 +239,7 @@ def is_plex_playing(plex_status, room, uuid):
     for item in plex_status.findall('Video'):
         if item.find('Player').get('machineIdentifier') not in room['devices']:
             return False
-        if not CURRENT_STATUS[uuid] != item.find('Player').get('state'):
+        if CURRENT_STATUS[uuid] == item.find('Player').get('state'):
             return False
         if item.find('Player').get('state') == 'playing':
             CURRENT_STATUS[uuid] = item.find('Player').get('state')
@@ -274,17 +275,17 @@ def turn_off_lights(lights):
         # at full brightness for a half second before going dim.
         automation_services[service].change_group_state(True, 0, lights_list)
         automation_services[service].change_group_state(False, 0, lights_list)
-
+    pass
 
 def turn_on_lights(lights):
     for service, lights_list in lights.iteritems():
         automation_services[service].change_group_state(True, 1, lights_list)
-
+    pass
 
 def dim_lights(lights):
     for service, lights_list in lights.iteritems():
         automation_services[service].change_group_state(True, 0, lights_list)
-
+    pass
 
 def on_message(ws, message):
     json_object = json.loads(message)
