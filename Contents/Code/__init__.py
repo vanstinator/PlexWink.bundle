@@ -236,27 +236,29 @@ def is_plex_playing(plex_status, room, uuid):
     if uuid not in CURRENT_STATUS:
         CURRENT_STATUS[uuid] = 'stopped'
     for item in plex_status.findall('Video'):
-        for client_identifier in room['devices']:
-            if item.find('Player').get('machineIdentifier') == client_identifier:
-                if item.find('Player').get('state') == 'playing' and CURRENT_STATUS[uuid] != item.find('Player').get(
-                        'state'):
-                    CURRENT_STATUS[uuid] = item.find('Player').get('state')
-                    Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
-                        item.find('User').get('title'), CURRENT_STATUS[uuid], item.get('grandparentTitle'),
-                        item.get('title'), client_identifier))
-                    Log('should turn off')
-                    turn_off_lights(room['lights'])
-                    return False
-                elif item.find('Player').get('state') == 'paused' and CURRENT_STATUS[uuid] != item.find('Player').get(
-                        'state'):
-                    CURRENT_STATUS[uuid] = item.find('Player').get('state')
-                    Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
-                        item.find('User').get('title'), CURRENT_STATUS[uuid], item.get('grandparentTitle'),
-                        item.get('title'), client_identifier))
-                    dim_lights(room['lights'])
-                    return False
-                else:
-                    return False
+        if item.find('Player').get('machineIdentifier') not in room['devices']:
+            return False
+        if not CURRENT_STATUS[uuid] != item.find('Player').get('state'):
+            return False
+        if item.find('Player').get('state') == 'playing':
+            CURRENT_STATUS[uuid] = item.find('Player').get('state')
+            Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
+                item.find('User').get('title'), CURRENT_STATUS[uuid], item.get('grandparentTitle'),
+                item.get('title'), item.find('Player').get('machineIdentifier')))
+            Log('should turn off')
+            turn_off_lights(room['lights'])
+            return False
+        elif item.find('Player').get('state') == 'paused':
+            CURRENT_STATUS[uuid] = item.find('Player').get('state')
+            Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
+                item.find('User').get('title'), CURRENT_STATUS[uuid], item.get('grandparentTitle'),
+                item.get('title'), item.find('Player').get('machineIdentifier')))
+            dim_lights(room['lights'])
+            return False
+        # When the file has stopped there's nothing to check, so if it gets this far we'll just return False and
+        # try again next time we come through
+        else:
+            return False
 
     if CURRENT_STATUS[uuid] == 'stopped':
         return False
@@ -268,22 +270,20 @@ def is_plex_playing(plex_status, room, uuid):
 
 def turn_off_lights(lights):
     for service, lights_list in lights.iteritems():
+        # GE Link lights won't go dim before shutting off so it's jarring to turn them off and then have them come back
+        # at full brightness for a half second before going dim.
         automation_services[service].change_group_state(True, 0, lights_list)
-        # sleep(2)
         automation_services[service].change_group_state(False, 0, lights_list)
-    pass
 
 
 def turn_on_lights(lights):
     for service, lights_list in lights.iteritems():
         automation_services[service].change_group_state(True, 1, lights_list)
-    pass
 
 
 def dim_lights(lights):
     for service, lights_list in lights.iteritems():
         automation_services[service].change_group_state(True, 0, lights_list)
-    pass
 
 
 def on_message(ws, message):
