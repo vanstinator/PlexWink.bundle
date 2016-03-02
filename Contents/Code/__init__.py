@@ -155,6 +155,7 @@ def ToggleRoom(uuid):
     else:
         ROOM_HANDLER[uuid]['enabled'] = False
         turn_on_lights(ROOM_HANDLER[uuid]['lights'])
+        CURRENT_STATUS[uuid] = 'stopped'
     return EditRoom(uuid, message="Toggled Room: " + ROOM_HANDLER[uuid]['name'])
 
 
