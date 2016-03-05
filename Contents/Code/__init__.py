@@ -61,6 +61,8 @@ def MainMenu(header=NAME, message="Hello"):
             InputDirectoryObject(key=Callback(CreateRoom), title=("Create a Room"), prompt='Please enter a room name'))
     for key, value in ROOM_HANDLER.rooms.iteritems():
         oc.add(DirectoryObject(key=Callback(EditRoom, uuid=key), title=value['name'], thumb=R('hellohue.png')))
+    if not automation_services[hue.name].is_authenticated():
+        oc.add(DirectoryObject(key=Callback(ConnectHueBridge), title="Press button on Hue hub and then click here", thumb=R('hellohue.png')))
     return oc
 
 
@@ -74,6 +76,12 @@ def CreateRoom(query=""):
     ROOM_HANDLER[String.UUID()] = room
     return MainMenu(message="Creating a new Room named: " + query)
 
+@route(PREFIX + '/ConnectHueBridge')
+def ConnectHueBridge():
+    automation_services[hue.name].authenticate()
+    if automation_services[hue.name].is_authenticated():
+        return MainMenu(message="Successfully connected to bridge")
+    return MainMenu(message="Bridge Connection Failed")
 
 @route(PREFIX + '/EditRoom')
 def EditRoom(uuid, message=""):
@@ -196,15 +204,14 @@ def RemoveDeviceTrigger(uuid, client_identifier):
 @route(PREFIX + '/ValidatePrefs')
 def ValidatePrefs():
     Log('Validating Prefs')
-    global plex, wink, automation_services
+    global plex, wink, hue, automation_services
 
     automation_services = dict()
     plex = Plex()
     wink = WinkAutomation(Prefs['WINK_CLIENT_ID'], Prefs['WINK_CLIENT_SECRET'], Prefs['WINK_USERNAME'], Prefs['WINK_PASSWORD'])
-    hue = PhilipsHueAutomation(Prefs['HUE_IP_ADDRESS'], None)
     automation_services[wink.name] = wink
+    hue = PhilipsHueAutomation(Prefs['HUE_IP_ADDRESS'], Data.Load("hue_username"))
     automation_services[hue.name] = hue
-    Log(automation_services)
     Log('Wink connection status is ' + str(wink.is_authenticated()))
     Log('Hue connection status is ' + str(hue.is_authenticated()))
 

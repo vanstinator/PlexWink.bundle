@@ -1,6 +1,7 @@
 from Automation import Automation
 from qhue import Bridge
-from qhue import QhueException
+from qhue import create_new_username
+
 
 class PhilipsHueAutomation(Automation):
     """
@@ -9,7 +10,7 @@ class PhilipsHueAutomation(Automation):
 
     def __init__(self, hub_ip, username):
 
-        self.username = "OVnUOPZnbLkOz7XpPAp6J5obGg0zkYbq1fLeedC0"
+        self.username = username
         self.hub_ip = hub_ip
 
         self.p_light_groups = None
@@ -25,10 +26,17 @@ class PhilipsHueAutomation(Automation):
         try:
             self.bridge()
             return True
-        except QhueException:
+        except:
             return False
 
     def authenticate(self):
+        # Data.Save("hue_username", None)
+        if not self.username:
+            try:
+                self.username = create_new_username(self.hub_ip)
+            except:
+                pass
+            Data.Save("hue_username", self.username)
         self.bridge = Bridge(self.hub_ip, self.username)
 
     def light_groups(self):
