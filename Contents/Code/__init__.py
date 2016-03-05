@@ -123,7 +123,8 @@ def SetupLights(uuid):
             if group['id'] in ROOM_HANDLER[uuid]['lights'][name]:
                 oc.add(DirectoryObject(key=Callback(RemoveLightGroup,
                                                     uuid=uuid,
-                                                    group_id=group['id']),
+                                                    group_id=group['id'],
+                                                    service_name=name),
                                        title=name + " - Remove " + group['name'],
                                        thumb=R('hellohue.png')))
             else:
@@ -187,8 +188,8 @@ def AddDeviceTrigger(uuid, client_identifier):
 
 
 @route(PREFIX + '/RemoveLightGroup')
-def RemoveLightGroup(uuid, group_id):
-    ROOM_HANDLER[uuid]['lights'].remove(group_id)
+def RemoveLightGroup(uuid, group_id, service_name):
+    ROOM_HANDLER[uuid]['lights'][service_name].remove(group_id)
     return EditRoom(uuid, message="Removed light group: " + group_id)
 
 
