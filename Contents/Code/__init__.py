@@ -237,26 +237,22 @@ def is_plex_playing(plex_status, room, uuid):
         return False
     if uuid not in CURRENT_STATUS:
         CURRENT_STATUS[uuid] = 'stopped'
-    for item in plex_status.findall('Video'):
-        if item.find('Player').get('machineIdentifier') not in room['devices']:
-            return False
-        if CURRENT_STATUS[uuid] == item.find('Player').get('state'):
-            return False
-        if item.find('Player').get('state') == 'playing':
-            CURRENT_STATUS[uuid] = item.find('Player').get('state')
-            Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
-                item.find('User').get('title'), CURRENT_STATUS[uuid], item.get('grandparentTitle'),
-                item.get('title'), item.find('Player').get('machineIdentifier')))
-            Log('should turn off')
+    for video in plex_status.findall('Video'):
+        if video.find('Player').get('machineIdentifier') not in room['devices']:
+            continue
+        if CURRENT_STATUS[uuid] == video.find('Player').get('state'):
+            continue
+        Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
+        video.find('User').get('title'), CURRENT_STATUS[uuid], video.get('grandparentTitle'),
+        video.get('title'), video.find('Player').get('machineIdentifier')))
+        if video.find('Player').get('state') == 'playing':
+            CURRENT_STATUS[uuid] = video.find('Player').get('state')
             turn_off_lights(room['lights'])
-            return False
-        elif item.find('Player').get('state') == 'paused':
-            CURRENT_STATUS[uuid] = item.find('Player').get('state')
-            Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
-                item.find('User').get('title'), CURRENT_STATUS[uuid], item.get('grandparentTitle'),
-                item.get('title'), item.find('Player').get('machineIdentifier')))
+            continue
+        elif video.find('Player').get('state') == 'paused':
+            CURRENT_STATUS[uuid] = video.find('Player').get('state')
             dim_lights(room['lights'])
-            return False
+            continue
         # When the file has stopped there's nothing to check, so if it gets this far we'll just return False and
         # try again next time we come through
         else:
