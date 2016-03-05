@@ -231,6 +231,7 @@ def toggle_socket_thread():
         threading.Thread(target=run_websocket_watcher, name=THREAD_WEBSOCKET).start()
 
 
+# TODO rewrite logic
 def is_plex_playing(plex_status, room, uuid):
     global CURRENT_STATUS
     if not room['enabled']:
@@ -238,25 +239,32 @@ def is_plex_playing(plex_status, room, uuid):
     if uuid not in CURRENT_STATUS:
         CURRENT_STATUS[uuid] = 'stopped'
     for video in plex_status.findall('Video'):
+        # If we don't match on a recognized device let's just grab the next one.
         if video.find('Player').get('machineIdentifier') not in room['devices']:
             continue
+        # We recognized a device. Anything at this point should just return. If a room has 2 devices they don't need to
+        # step on each others toes. First one to start playing takes priority.
         if CURRENT_STATUS[uuid] == video.find('Player').get('state'):
-            continue
-        Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
-        video.find('User').get('title'), CURRENT_STATUS[uuid], video.get('grandparentTitle'),
-        video.get('title'), video.find('Player').get('machineIdentifier')))
+            return
         if video.find('Player').get('state') == 'playing':
             CURRENT_STATUS[uuid] = video.find('Player').get('state')
+            Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
+                video.find('User').get('title'), CURRENT_STATUS[uuid], video.get('grandparentTitle'),
+                video.get('title'), video.find('Player').get('machineIdentifier')))
             turn_off_lights(room['lights'])
-            continue
+            # We got a match. Return the function
+            return
         elif video.find('Player').get('state') == 'paused':
             CURRENT_STATUS[uuid] = video.find('Player').get('state')
+            Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
+                video.find('User').get('title'), CURRENT_STATUS[uuid], video.get('grandparentTitle'),
+                video.get('title'), video.find('Player').get('machineIdentifier')))
             dim_lights(room['lights'])
-            continue
-        # When the file has stopped there's nothing to check, so if it gets this far we'll just return False and
-        # try again next time we come through
+            # We got a match. Return the function
+            return
+        # Play state hasn't changed and the file is still playing. Return and we'll check again next round.
         else:
-            return False
+            return
 
     if CURRENT_STATUS[uuid] == 'stopped':
         return False
