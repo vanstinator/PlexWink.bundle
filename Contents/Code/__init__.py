@@ -290,18 +290,18 @@ def turn_off_lights(lights):
     for service, lights_list in lights.iteritems():
         # GE Link lights won't go dim before shutting off so it's jarring to turn them off and then have them come back
         # at full brightness for a half second before going dim.
-        automation_services[service].change_group_state(True, 0, lights_list)
-        automation_services[service].change_group_state(False, 0, lights_list)
+        automation_services[service].change_group_state(lights_list, powered=True, dim=True)
+        automation_services[service].change_group_state(lights_list, powered=False, dim=True)
     pass
 
 def turn_on_lights(lights):
     for service, lights_list in lights.iteritems():
-        automation_services[service].change_group_state(True, 1, lights_list)
+        automation_services[service].change_group_state(lights_list, powered=True, dim=False)
     pass
 
 def dim_lights(lights):
     for service, lights_list in lights.iteritems():
-        automation_services[service].change_group_state(True, 0, lights_list)
+        automation_services[service].change_group_state(lights_list, powered=True, dim=True)
     pass
 
 def on_message(ws, message):

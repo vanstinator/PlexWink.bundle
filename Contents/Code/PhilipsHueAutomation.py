@@ -50,20 +50,12 @@ class PhilipsHueAutomation(Automation):
                 self.p_light_groups.append(g)
         return self.p_light_groups
 
-    @property
-    def group_state(self, **kwargs):
-        """
-        Function will return the state of the group
+    def change_group_state(self, lights, powered=False, dim=False):
+        if dim:
+            brightness = 0
+        else:
+            brightness = 255
 
-        :return:
-        """
-        raise NotImplementedError("Must implement abstract method")
-
-    def change_group_state(self, **kwargs):
-        """
-        Function will change the state of the selected light group and return boolean successful.
-
-        :param kwargs:
-        :return: boolean
-        """
-        raise NotImplementedError("Must implement abstract method")
+        for light in lights:
+            Log(self.bridge.groups[light]())
+            self.bridge.groups[light].action(on=powered, bri=brightness)

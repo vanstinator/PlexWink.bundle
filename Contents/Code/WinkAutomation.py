@@ -60,7 +60,11 @@ class WinkAutomation(Automation):
                 self.p_light_groups.append(g)
         return self.p_light_groups
 
-    def change_group_state(self, powered, brightness, lights):
+    def change_group_state(self, lights, powered=False, dim=False):
+        if dim:
+            brightness = 0
+        else:
+            brightness = 100
         state_string = {'desired_state': {'brightness': brightness, 'powered': powered}}
         for group_id in lights:
             requests.post(self.service + "/groups/" + group_id + "/activate", json=state_string, headers=self.auth_header)
