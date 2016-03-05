@@ -2,12 +2,12 @@ import json
 import threading
 import time
 import xml.etree.ElementTree as ElementTree
-from time import sleep
 
 import requests
 import websocket
 
 from WinkAutomation import WinkAutomation
+from PhilipsHueAutomation import PhilipsHueAutomation
 from DumbTools import DumbKeyboard
 from RoomsHandler import Rooms
 
@@ -108,6 +108,7 @@ def SetupLights(uuid):
     oc = ObjectContainer(no_cache=True, no_history=True, replace_parent=True)
     oc.message = "Please select the following "
     for name, service in automation_services.iteritems():
+        Log('Adding items for ' + name)
         for group in service.light_groups():
             if name not in ROOM_HANDLER[uuid]['lights']:
                 ROOM_HANDLER[uuid]['lights'][name] = list()
@@ -115,14 +116,14 @@ def SetupLights(uuid):
                 oc.add(DirectoryObject(key=Callback(RemoveLightGroup,
                                                     uuid=uuid,
                                                     group_id=group['id']),
-                                       title="Remove " + group['name'],
+                                       title=name + " - Remove " + group['name'],
                                        thumb=R('hellohue.png')))
             else:
                 oc.add(DirectoryObject(key=Callback(AddLightGroup,
                                                     uuid=uuid,
                                                     group_id=group['id'],
                                                     service_name=name),
-                                       title="Add " + group['name'],
+                                       title=name + " - Add " + group['name'],
                                        thumb=R('hellohue.png')))
     return oc
 
@@ -200,8 +201,12 @@ def ValidatePrefs():
     automation_services = dict()
     plex = Plex()
     wink = WinkAutomation(Prefs['WINK_CLIENT_ID'], Prefs['WINK_CLIENT_SECRET'], Prefs['WINK_USERNAME'], Prefs['WINK_PASSWORD'])
+    hue = PhilipsHueAutomation(Prefs['HUE_IP_ADDRESS'], None)
     automation_services[wink.name] = wink
+    automation_services[hue.name] = hue
+    Log(automation_services)
     Log('Wink connection status is ' + str(wink.is_authenticated()))
+    Log('Hue connection status is ' + str(hue.is_authenticated()))
 
 
 def run_websocket_watcher():
@@ -305,7 +310,7 @@ class Plex:
         global PLEX_ACCESS_TOKEN
 
         HEADERS = {'X-Plex-Product': 'Automating Home Lighting',
-                   'X-Plex-Version': '2.0.0',
+                   'X-Plex-Version': '3.1.0',
                    'X-Plex-Client-Identifier': 'PlexWink',
                    'X-Plex-Device': 'PC',
                    'X-Plex-Device-Name': 'PlexWink'}

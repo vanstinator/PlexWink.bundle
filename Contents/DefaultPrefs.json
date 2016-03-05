@@ -44,5 +44,11 @@
     "label": "Wink Client Secret",
     "type": "text",
     "default": "WINK_CLIENT_SECRET"
+  },
+  {
+    "id": "HUE_IP_ADDRESS",
+    "label": "Philips Hue Hub IP Address",
+    "type": "text",
+    "default": "HUE_IP_ADDRESS"
   }
 ]
