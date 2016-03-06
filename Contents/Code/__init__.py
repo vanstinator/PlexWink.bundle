@@ -153,7 +153,8 @@ def SetupDevices(uuid):
                          no_history=True,
                          replace_parent=True)
     for device in plex.get_plex_devices():
-        if 'player' in device.get('provides') or 'XboxOne' in device.get('name'):
+        # XboxOne doesn't provide a player in the API. Need to manually display it
+        if 'player' in device.get('provides') or 'XboxOne' in device.get('platform'):
             if device.get('clientIdentifier') in ROOM_HANDLER[uuid]['devices']:
                 oc.add(DirectoryObject(key=Callback(RemoveDeviceTrigger,
                                                     uuid=uuid,
