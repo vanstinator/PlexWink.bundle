@@ -153,17 +153,17 @@ def SetupDevices(uuid):
                          no_history=True,
                          replace_parent=True)
     for device in plex.get_plex_devices():
-        # if "player" in device.get('provides'):
-        if device.get('clientIdentifier') in ROOM_HANDLER[uuid]['devices']:
-            oc.add(DirectoryObject(key=Callback(RemoveDeviceTrigger,
-                                                uuid=uuid,
-                                                client_identifier=device.get('clientIdentifier')),
-                                   title="Remove " + device.get('name')))
-        else:
-            oc.add(DirectoryObject(key=Callback(AddDeviceTrigger,
-                                                uuid=uuid,
-                                                client_identifier=device.get('clientIdentifier')),
-                                   title="Add " + device.get('name')))
+        if 'player' in device.get('provides') or 'XboxOne' in device.get('name'):
+            if device.get('clientIdentifier') in ROOM_HANDLER[uuid]['devices']:
+                oc.add(DirectoryObject(key=Callback(RemoveDeviceTrigger,
+                                                    uuid=uuid,
+                                                    client_identifier=device.get('clientIdentifier')),
+                                       title="Remove " + device.get('name')))
+            else:
+                oc.add(DirectoryObject(key=Callback(AddDeviceTrigger,
+                                                    uuid=uuid,
+                                                    client_identifier=device.get('clientIdentifier')),
+                                       title="Add " + device.get('name')))
     return oc
 
 
