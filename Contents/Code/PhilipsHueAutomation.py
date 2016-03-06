@@ -8,9 +8,9 @@ class PhilipsHueAutomation(Automation):
     Class provides an abstract instance of Automation to interface with the Philips Hue service.
     """
 
-    def __init__(self, hub_ip, username):
+    def __init__(self, hub_ip):
 
-        self.username = username
+        self.username = Data.Load("hue_username")
         self.hub_ip = hub_ip
 
         self.p_light_groups = None

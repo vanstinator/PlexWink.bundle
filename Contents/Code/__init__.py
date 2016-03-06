@@ -48,21 +48,27 @@ def Start():
 # Main menu
 ####################################################################################################
 @handler(PREFIX, NAME, art=R(ART), thumb=R(ICON))
-def MainMenu(header=NAME, message="Hello"):
+def MainMenu(header=NAME, message=""):
     oc = ObjectContainer(no_cache=True, no_history=True, replace_parent=True)
-    if message is not "Hello":
-        oc.header = header
+
+    if message is not "":
         oc.message = message
+        oc.header = header
+
     if Client.Product in DUMB_KEYBOARD_CLIENTS or Client.Platform in DUMB_KEYBOARD_CLIENTS:
         Log.Debug("Client does not support Input. Using DumbKeyboard")
         DumbKeyboard(PREFIX, oc, CreateRoom, dktitle="Create a Room")
     else:
-        oc.add(
-            InputDirectoryObject(key=Callback(CreateRoom), title=("Create a Room"), prompt='Please enter a room name'))
-    for key, value in ROOM_HANDLER.rooms.iteritems():
-        oc.add(DirectoryObject(key=Callback(EditRoom, uuid=key), title=value['name'], thumb=R('hellohue.png')))
+        oc.add(InputDirectoryObject(key=Callback(CreateRoom), title='Create a Room', prompt='Please enter a room name'))
+
+    if Client.Product == 'Plex Web' and not ROOM_HANDLER.rooms:
+        oc.add(DirectoryObject(key=Callback(MainMenu), title='You\'re using Plex Web. Please type a room name into the search field to add your first room.'))
+
+    for uuid, room in ROOM_HANDLER.rooms.iteritems():
+        oc.add(DirectoryObject(key=Callback(EditRoom, uuid=uuid), title=room['name']))
+
     if not automation_services[hue.name].is_authenticated():
-        oc.add(DirectoryObject(key=Callback(ConnectHueBridge), title="Press button on Hue hub and then click here", thumb=R('hellohue.png')))
+        oc.add(DirectoryObject(key=Callback(ConnectHueBridge), title="Press button on Hue hub and then click here"))
     return oc
 
 
@@ -89,7 +95,7 @@ def EditRoom(uuid, message=""):
     oc = ObjectContainer(no_cache=True, no_history=True, replace_parent=True)
     if message != "":
         oc.message = message
-        # After every action with this as a callback we should assume something changed and therefore save to Data
+        # After every action with this as a callback we should assume something changed and therefore save the Data
         ROOM_HANDLER.save()
     oc.header = message
 
@@ -114,12 +120,16 @@ def EditRoom(uuid, message=""):
 @route(PREFIX + '/SetupLights')
 def SetupLights(uuid):
     oc = ObjectContainer(no_cache=True, no_history=True, replace_parent=True)
-    oc.message = "Please select the following "
+
     for name, service in automation_services.iteritems():
-        Log('Adding items for ' + name)
+
+        if not service.light_groups():
+            oc.add(DirectoryObject(key=Callback(MainMenu), title="No groups found for " + service.name))
         for group in service.light_groups():
+
             if name not in ROOM_HANDLER[uuid]['lights']:
                 ROOM_HANDLER[uuid]['lights'][name] = list()
+
             if group['id'] in ROOM_HANDLER[uuid]['lights'][name]:
                 oc.add(DirectoryObject(key=Callback(RemoveLightGroup,
                                                     uuid=uuid,
@@ -154,7 +164,6 @@ def SetupDevices(uuid):
                                                 uuid=uuid,
                                                 client_identifier=device.get('clientIdentifier')),
                                    title="Add " + device.get('name')))
-    oc.message = "Please select the following "
     return oc
 
 
@@ -211,7 +220,7 @@ def ValidatePrefs():
     plex = Plex()
     wink = WinkAutomation(Prefs['WINK_CLIENT_ID'], Prefs['WINK_CLIENT_SECRET'], Prefs['WINK_USERNAME'], Prefs['WINK_PASSWORD'])
     automation_services[wink.name] = wink
-    hue = PhilipsHueAutomation(Prefs['HUE_IP_ADDRESS'], Data.Load("hue_username"))
+    hue = PhilipsHueAutomation(Prefs['HUE_IP_ADDRESS'])
     automation_services[hue.name] = hue
     Log('Wink connection status is ' + str(wink.is_authenticated()))
     Log('Hue connection status is ' + str(hue.is_authenticated()))
