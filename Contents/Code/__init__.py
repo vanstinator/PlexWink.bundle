@@ -19,6 +19,7 @@ ART = 'background.png'
 ICON = 'plexwink.png'
 DELETE_ICON = 'plexwink-delete.png'
 DISABLED_ICON = 'plexwink-disabled.png'
+ENABLED_ICON = 'plexwink-enabled.png'
 GROUPS_ICON = 'plexwink-groups.png'
 DEVICE_ICON = 'plexwink-device.png'
 
@@ -108,9 +109,9 @@ def EditRoom(uuid, message=""):
     oc.add(DirectoryObject(key=Callback(SetupDevices, uuid=uuid), title='Select players', thumb=R(DEVICE_ICON)))
 
     if room['enabled']:
-        oc.add(DirectoryObject(key=Callback(ToggleRoom, uuid=uuid), title='Disable this room', thumb=R(DISABLED_ICON)))
+        oc.add(DirectoryObject(key=Callback(ToggleRoom, uuid=uuid), title='Disable this room', thumb=R(ENABLED_ICON)))
     else:
-        oc.add(DirectoryObject(key=Callback(ToggleRoom, uuid=uuid), title='Enable this room', thumb=R(ICON)))
+        oc.add(DirectoryObject(key=Callback(ToggleRoom, uuid=uuid), title='Enable this room', thumb=R(DISABLED_ICON)))
 
     oc.add(DirectoryObject(key=Callback(RemoveRoom, uuid=uuid), title='Delete Room', thumb=R(DELETE_ICON)))
     return oc
@@ -153,7 +154,7 @@ def SetupDevices(uuid):
                          replace_parent=True)
     for device in plex.get_plex_devices():
         # XboxOne doesn't provide a player in the API. Need to manually display it
-        if 'player' in device.get('provides') or 'XboxOne' in device.get('platform'):
+        if 'player' in device.get('provides') or 'Xbox One' in device.get('platform'):
             if device.get('clientIdentifier') in ROOM_HANDLER[uuid]['devices']:
                 oc.add(DirectoryObject(key=Callback(RemoveDeviceTrigger,
                                                     uuid=uuid,
