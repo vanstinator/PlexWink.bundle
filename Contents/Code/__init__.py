@@ -16,14 +16,16 @@ from RoomsHandler import Rooms
 PREFIX = "/applications/PlexWink"
 NAME = 'PlexWink'
 ART = 'background.png'
-ICON = 'hellohue.png'
-PREFS_ICON = 'hellohue.png'
-PROFILE_ICON = 'hellohue.png'
+ICON = 'plexwink.png'
+DELETE_ICON = 'plexwink-delete.png'
+DISABLED_ICON = 'plexwink-disabled.png'
+GROUPS_ICON = 'plexwink-groups.png'
+DEVICE_ICON = 'plexwink-device.png'
 
 ####################################################################################################
 
-THREAD_WEBSOCKET = "thread_websocket";
-THREAD_CLIENTS = "thread_clients";
+THREAD_WEBSOCKET = "thread_websocket"
+THREAD_CLIENTS = "thread_clients"
 DUMB_KEYBOARD_CLIENTS = ['Plex for iOS', 'Plex Media Player', 'Plex Home Theater', 'OpenPHT', 'Plex for Roku', 'iOS',
                          'Roku', 'tvOS' 'Konvergo']
 
@@ -82,12 +84,14 @@ def CreateRoom(query=""):
     ROOM_HANDLER[String.UUID()] = room
     return MainMenu(message="Creating a new Room named: " + query)
 
+
 @route(PREFIX + '/ConnectHueBridge')
 def ConnectHueBridge():
     automation_services[hue.name].authenticate()
     if automation_services[hue.name].is_authenticated():
         return MainMenu(message="Successfully connected to bridge")
     return MainMenu(message="Bridge Connection Failed")
+
 
 @route(PREFIX + '/EditRoom')
 def EditRoom(uuid, message=""):
@@ -99,21 +103,16 @@ def EditRoom(uuid, message=""):
         ROOM_HANDLER.save()
     oc.header = message
 
-    oc.add(DirectoryObject(key=Callback(SetupLights, uuid=uuid),
-                           title='Select lights'))
+    oc.add(DirectoryObject(key=Callback(SetupLights, uuid=uuid), title='Select lights', thumb=R(GROUPS_ICON)))
 
-    oc.add(DirectoryObject(key=Callback(SetupDevices, uuid=uuid),
-                           title='Select players'))
+    oc.add(DirectoryObject(key=Callback(SetupDevices, uuid=uuid), title='Select players', thumb=R(DEVICE_ICON)))
 
     if room['enabled']:
-        oc.add(DirectoryObject(key=Callback(ToggleRoom, uuid=uuid),
-                               title='Disable this room'))
+        oc.add(DirectoryObject(key=Callback(ToggleRoom, uuid=uuid), title='Disable this room', thumb=R(DISABLED_ICON)))
     else:
-        oc.add(DirectoryObject(key=Callback(ToggleRoom, uuid=uuid),
-                               title='Enable this room'))
+        oc.add(DirectoryObject(key=Callback(ToggleRoom, uuid=uuid), title='Enable this room', thumb=R(ICON)))
 
-    oc.add(DirectoryObject(key=Callback(RemoveRoom, uuid=uuid),
-                           title='Delete Room'))
+    oc.add(DirectoryObject(key=Callback(RemoveRoom, uuid=uuid), title='Delete Room', thumb=R(DELETE_ICON)))
     return oc
 
 
