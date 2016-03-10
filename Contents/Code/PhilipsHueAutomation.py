@@ -16,11 +16,16 @@ class PhilipsHueAutomation(Automation):
         self.p_light_groups = None
         self.bridge = None
         self.authenticate()
-        self.p_name = "Hue" # This cannot change going forward. There are quite a few things keying off this name
+        self.p_name = "Philips Hue" # This cannot change. There are quite a few things keying off this name
 
     @property
     def name(self):
         return self.p_name
+
+    def has_username(self):
+        if self.username:
+            return True
+        return False
 
     def is_authenticated(self):
         try:

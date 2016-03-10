@@ -67,11 +67,16 @@ def MainMenu(header=NAME, message=""):
     if Client.Product == 'Plex Web' and not ROOM_HANDLER.rooms:
         oc.add(DirectoryObject(key=Callback(MainMenu), title='You\'re using Plex Web. Please type a room name into the search field to add your first room.'))
 
-    for uuid, room in ROOM_HANDLER.rooms.iteritems():
-        oc.add(DirectoryObject(key=Callback(EditRoom, uuid=uuid), title=room['name']))
+    for room_uuid, room in ROOM_HANDLER.rooms.iteritems():
+        oc.add(DirectoryObject(key=Callback(EditRoom, room_uuid=room_uuid), title=room['name']))
 
-    if not automation_services[hue.name].is_authenticated():
+    # This function is specific to Hue
+    if not automation_services[hue.name].has_username():
         oc.add(DirectoryObject(key=Callback(ConnectHueBridge), title="Press button on Hue hub and then click here"))
+
+    for name, service in automation_services.iteritems():
+        if not service.is_authenticated():
+            oc.add(DirectoryObject(key=Callback(MainMenu), title="Error connecting to " + service.name))
     return oc
 
 
@@ -95,8 +100,8 @@ def ConnectHueBridge():
 
 
 @route(PREFIX + '/EditRoom')
-def EditRoom(uuid, message=""):
-    room = ROOM_HANDLER[uuid]
+def EditRoom(room_uuid, message=""):
+    room = ROOM_HANDLER[room_uuid]
     oc = ObjectContainer(no_cache=True, no_history=True, replace_parent=True)
     if message != "":
         oc.message = message
@@ -104,21 +109,21 @@ def EditRoom(uuid, message=""):
         ROOM_HANDLER.save()
     oc.header = message
 
-    oc.add(DirectoryObject(key=Callback(SetupLights, uuid=uuid), title='Select lights', thumb=R(GROUPS_ICON)))
+    oc.add(DirectoryObject(key=Callback(SetupLights, room_uuid=room_uuid), title='Select lights', thumb=R(GROUPS_ICON)))
 
-    oc.add(DirectoryObject(key=Callback(SetupDevices, uuid=uuid), title='Select players', thumb=R(DEVICE_ICON)))
+    oc.add(DirectoryObject(key=Callback(SetupDevices, room_uuid=room_uuid), title='Select players', thumb=R(DEVICE_ICON)))
 
     if room['enabled']:
-        oc.add(DirectoryObject(key=Callback(ToggleRoom, uuid=uuid), title='Disable this room', thumb=R(ENABLED_ICON)))
+        oc.add(DirectoryObject(key=Callback(ToggleRoom, room_uuid=room_uuid), title='Disable this room', thumb=R(ENABLED_ICON)))
     else:
-        oc.add(DirectoryObject(key=Callback(ToggleRoom, uuid=uuid), title='Enable this room', thumb=R(DISABLED_ICON)))
+        oc.add(DirectoryObject(key=Callback(ToggleRoom, room_uuid=room_uuid), title='Enable this room', thumb=R(DISABLED_ICON)))
 
-    oc.add(DirectoryObject(key=Callback(RemoveRoom, uuid=uuid), title='Delete Room', thumb=R(DELETE_ICON)))
+    oc.add(DirectoryObject(key=Callback(RemoveRoom, room_uuid=room_uuid), title='Delete Room', thumb=R(DELETE_ICON)))
     return oc
 
 
 @route(PREFIX + '/SetupLights')
-def SetupLights(uuid):
+def SetupLights(room_uuid):
     oc = ObjectContainer(no_cache=True, no_history=True, replace_parent=True)
 
     for name, service in automation_services.iteritems():
@@ -127,86 +132,86 @@ def SetupLights(uuid):
             oc.add(DirectoryObject(key=Callback(MainMenu), title="No groups found for " + service.name))
         for group in service.light_groups():
 
-            if name not in ROOM_HANDLER[uuid]['lights']:
-                ROOM_HANDLER[uuid]['lights'][name] = list()
+            if name not in ROOM_HANDLER[room_uuid]['lights']:
+                ROOM_HANDLER[room_uuid]['lights'][name] = list()
 
-            if group['id'] in ROOM_HANDLER[uuid]['lights'][name]:
+            if group['id'] in ROOM_HANDLER[room_uuid]['lights'][name]:
                 oc.add(DirectoryObject(key=Callback(RemoveLightGroup,
-                                                    uuid=uuid,
+                                                    room_uuid=room_uuid,
                                                     group_id=group['id'],
                                                     service_name=name),
-                                       title=name + " - Remove " + group['name'],
+                                       title=group['name'] + " - " + name + " - Remove",
                                        thumb=R('hellohue.png')))
             else:
                 oc.add(DirectoryObject(key=Callback(AddLightGroup,
-                                                    uuid=uuid,
+                                                    room_uuid=room_uuid,
                                                     group_id=group['id'],
                                                     service_name=name),
-                                       title=name + " - Add " + group['name'],
+                                       title=group['name'] + " - " + name + " - Add",
                                        thumb=R('hellohue.png')))
     return oc
 
 
 @route(PREFIX + '/SetupDevices')
-def SetupDevices(uuid):
+def SetupDevices(room_uuid):
     oc = ObjectContainer(no_cache=True,
                          no_history=True,
                          replace_parent=True)
     for device in plex.get_plex_devices():
         # XboxOne doesn't provide a player in the API. Need to manually display it
         if 'player' in device.get('provides') or 'Xbox One' in device.get('platform'):
-            if device.get('clientIdentifier') in ROOM_HANDLER[uuid]['devices']:
+            if device.get('clientIdentifier') in ROOM_HANDLER[room_uuid]['devices']:
                 oc.add(DirectoryObject(key=Callback(RemoveDeviceTrigger,
-                                                    uuid=uuid,
+                                                    room_uuid=room_uuid,
                                                     client_identifier=device.get('clientIdentifier')),
                                        title="Remove " + device.get('name')))
             else:
                 oc.add(DirectoryObject(key=Callback(AddDeviceTrigger,
-                                                    uuid=uuid,
+                                                    room_uuid=room_uuid,
                                                     client_identifier=device.get('clientIdentifier')),
                                        title="Add " + device.get('name')))
     return oc
 
 
 @route(PREFIX + '/ToggleRoom')
-def ToggleRoom(uuid):
-    if not ROOM_HANDLER[uuid]['enabled']:
-        ROOM_HANDLER[uuid]['enabled'] = True
+def ToggleRoom(room_uuid):
+    if not ROOM_HANDLER[room_uuid]['enabled']:
+        ROOM_HANDLER[room_uuid]['enabled'] = True
     else:
-        ROOM_HANDLER[uuid]['enabled'] = False
-        turn_on_lights(ROOM_HANDLER[uuid]['lights'])
-        CURRENT_STATUS[uuid] = 'stopped'
-    return EditRoom(uuid, message="Toggled Room: " + ROOM_HANDLER[uuid]['name'])
+        ROOM_HANDLER[room_uuid]['enabled'] = False
+        turn_on_lights(ROOM_HANDLER[room_uuid]['lights'])
+        CURRENT_STATUS[room_uuid] = 'stopped'
+    return EditRoom(room_uuid, message="Toggled Room: " + ROOM_HANDLER[room_uuid]['name'])
 
 
 @route(PREFIX + '/RemoveRoom')
-def RemoveRoom(uuid):
-    del ROOM_HANDLER[uuid]
+def RemoveRoom(room_uuid):
+    del ROOM_HANDLER[room_uuid]
     return MainMenu()
 
 
 @route(PREFIX + '/AddLightGroup')
-def AddLightGroup(uuid, group_id, service_name):
-    ROOM_HANDLER[uuid]['lights'][service_name].append(group_id)
-    return EditRoom(uuid, message="Added light group: " + group_id)
+def AddLightGroup(room_uuid, group_id, service_name):
+    ROOM_HANDLER[room_uuid]['lights'][service_name].append(group_id)
+    return EditRoom(room_uuid, message="Added light group: " + group_id)
 
 
 @route(PREFIX + '/AddDeviceTrigger')
-def AddDeviceTrigger(uuid, client_identifier):
-    ROOM_HANDLER[uuid]['devices'].append(client_identifier)
-    return EditRoom(uuid, message="Added device: " + client_identifier)
+def AddDeviceTrigger(room_uuid, client_identifier):
+    ROOM_HANDLER[room_uuid]['devices'].append(client_identifier)
+    return EditRoom(room_uuid, message="Added device: " + client_identifier)
 
 
 @route(PREFIX + '/RemoveLightGroup')
-def RemoveLightGroup(uuid, group_id, service_name):
-    ROOM_HANDLER[uuid]['lights'][service_name].remove(group_id)
-    return EditRoom(uuid, message="Removed light group: " + group_id)
+def RemoveLightGroup(room_uuid, group_id, service_name):
+    ROOM_HANDLER[room_uuid]['lights'][service_name].remove(group_id)
+    return EditRoom(room_uuid, message="Removed light group: " + group_id)
 
 
 @route(PREFIX + '/RemoveDeviceTrigger')
-def RemoveDeviceTrigger(uuid, client_identifier):
-    ROOM_HANDLER[uuid]['devices'].remove(client_identifier)
-    return EditRoom(uuid, message="Removed device: " + client_identifier)
+def RemoveDeviceTrigger(room_uuid, client_identifier):
+    ROOM_HANDLER[room_uuid]['devices'].remove(client_identifier)
+    return EditRoom(room_uuid, message="Removed device: " + client_identifier)
 
 
 ####################################################################################################
@@ -216,15 +221,18 @@ def RemoveDeviceTrigger(uuid, client_identifier):
 def ValidatePrefs():
     Log('Validating Prefs')
     global plex, wink, hue, automation_services
+    plex = Plex()
 
     automation_services = dict()
-    plex = Plex()
+
     wink = WinkAutomation(Prefs['WINK_CLIENT_ID'], Prefs['WINK_CLIENT_SECRET'], Prefs['WINK_USERNAME'], Prefs['WINK_PASSWORD'])
-    automation_services[wink.name] = wink
     hue = PhilipsHueAutomation(Prefs['HUE_IP_ADDRESS'])
+
+    automation_services[wink.name] = wink
     automation_services[hue.name] = hue
-    Log('Wink connection status is ' + str(wink.is_authenticated()))
-    Log('Hue connection status is ' + str(hue.is_authenticated()))
+
+    for service in automation_services:
+        Log(service.name + ' connection status is ' + str(wink.is_authenticated()))
 
 
 def run_websocket_watcher():
@@ -255,32 +263,32 @@ def toggle_socket_thread():
 
 
 # TODO rewrite logic
-def is_plex_playing(plex_status, room, uuid):
+def is_plex_playing(plex_status, room, room_uuid):
     global CURRENT_STATUS
     if not room['enabled']:
         return False
-    if uuid not in CURRENT_STATUS:
-        CURRENT_STATUS[uuid] = 'stopped'
+    if room_uuid not in CURRENT_STATUS:
+        CURRENT_STATUS[room_uuid] = 'stopped'
     for video in plex_status.findall('Video'):
         # If we don't match on a recognized device let's just grab the next one.
         if video.find('Player').get('machineIdentifier') not in room['devices']:
             continue
         # We recognized a device. Anything at this point should just return. If a room has 2 devices they don't need to
         # step on each others toes. First one to start playing takes priority.
-        if CURRENT_STATUS[uuid] == video.find('Player').get('state'):
+        if CURRENT_STATUS[room_uuid] == video.find('Player').get('state'):
             return
         if video.find('Player').get('state') == 'playing':
-            CURRENT_STATUS[uuid] = video.find('Player').get('state')
+            CURRENT_STATUS[room_uuid] = video.find('Player').get('state')
             Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
-                video.find('User').get('title'), CURRENT_STATUS[uuid], video.get('grandparentTitle'),
+                video.find('User').get('title'), CURRENT_STATUS[room_uuid], video.get('grandparentTitle'),
                 video.get('title'), video.find('Player').get('machineIdentifier')))
             turn_off_lights(room['lights'])
             # We got a match. Return the function
             return
         elif video.find('Player').get('state') == 'paused':
-            CURRENT_STATUS[uuid] = video.find('Player').get('state')
+            CURRENT_STATUS[room_uuid] = video.find('Player').get('state')
             Log(time.strftime("%I:%M:%S") + " - %s %s %s - %s on %s." % (
-                video.find('User').get('title'), CURRENT_STATUS[uuid], video.get('grandparentTitle'),
+                video.find('User').get('title'), CURRENT_STATUS[room_uuid], video.get('grandparentTitle'),
                 video.get('title'), video.find('Player').get('machineIdentifier')))
             dim_lights(room['lights'])
             # We got a match. Return the function
@@ -289,10 +297,10 @@ def is_plex_playing(plex_status, room, uuid):
         else:
             return
 
-    if CURRENT_STATUS[uuid] == 'stopped':
+    if CURRENT_STATUS[room_uuid] == 'stopped':
         return False
 
-    CURRENT_STATUS[uuid] = 'stopped'
+    CURRENT_STATUS[room_uuid] = 'stopped'
     Log(time.strftime("%I:%M:%S") + " - Playback stopped")
     turn_on_lights(room['lights'])
 
