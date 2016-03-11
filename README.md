@@ -22,11 +22,10 @@ Support is available on the Plex forums. Please do not open an issue on GitHub u
 
 **Requirements**
 * A current version of PMS
-* A Wink Smart Hub and some smart light bulbs
-* At least one group configured in Wink
+* A Wink or Philips Hue Smart Hub and some smart light bulbs
+* At least one group configured in Wink or Philips Hue
 
 The config is pretty simple. Fill out your plex login credentials, your wink credentials, and your wink API credentials. You can get the API keys by emailing support@winkapp.com. You need v1 API keys. PlexWink will not work with API v2.
 
 **Roadmap**
-* Fix bugs
-* Add imagery
+* support additional lighting products
