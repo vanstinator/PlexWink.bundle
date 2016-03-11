@@ -159,17 +159,17 @@ def SetupDevices(room_uuid):
                          replace_parent=True)
     for device in plex.get_plex_devices():
         # XboxOne doesn't provide a player in the API. Need to manually display it
-        if 'player' in device.get('provides') or 'Xbox One' in device.get('platform'):
-            if device.get('clientIdentifier') in ROOM_HANDLER[room_uuid]['devices']:
-                oc.add(DirectoryObject(key=Callback(RemoveDeviceTrigger,
-                                                    room_uuid=room_uuid,
-                                                    client_identifier=device.get('clientIdentifier')),
-                                       title="Remove " + device.get('name')))
-            else:
-                oc.add(DirectoryObject(key=Callback(AddDeviceTrigger,
-                                                    room_uuid=room_uuid,
-                                                    client_identifier=device.get('clientIdentifier')),
-                                       title="Add " + device.get('name')))
+        # if 'player' in device.get('provides') or 'Xbox One' in device.get('platform'):
+        if device.get('clientIdentifier') in ROOM_HANDLER[room_uuid]['devices']:
+            oc.add(DirectoryObject(key=Callback(RemoveDeviceTrigger,
+                                                room_uuid=room_uuid,
+                                                client_identifier=device.get('clientIdentifier')),
+                                   title="Remove " + device.get('name')))
+        else:
+            oc.add(DirectoryObject(key=Callback(AddDeviceTrigger,
+                                                room_uuid=room_uuid,
+                                                client_identifier=device.get('clientIdentifier')),
+                                   title="Add " + device.get('name')))
     return oc
 
 
@@ -231,8 +231,8 @@ def ValidatePrefs():
     automation_services[wink.name] = wink
     automation_services[hue.name] = hue
 
-    for service in automation_services:
-        Log(service.name + ' connection status is ' + str(wink.is_authenticated()))
+    for name, service in automation_services.iteritems():
+        Log(name + ' connection status is ' + str(wink.is_authenticated()))
 
 
 def run_websocket_watcher():
