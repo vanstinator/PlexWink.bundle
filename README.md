@@ -1,6 +1,6 @@
-# Plex Wink
+# Plex Wink Next
 
-*Code is undergoing refactoring and other changes before the next smart integration. Please proceed with caution when installing this branch*
+***Code is undergoing refactoring and other changes before the next smart integration. Please proceed with caution when installing this branch***
 
 PlexWink is a Plex Channel that is designed to give Plex control of your home's smart lighting capabilities. The channel will monitor your Plex server for play criteria that you set up with the channel. If any of the criteria are met PlexWink will turn your lights off when Plex is playing a media item and will turn them back on when you are finished.
 
