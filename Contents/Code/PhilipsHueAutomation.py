@@ -1,4 +1,6 @@
 from Automation import Automation
+from qhue import Bridge
+from qhue import create_new_username
 
 
 class PhilipsHueAutomation(Automation):
@@ -6,44 +8,59 @@ class PhilipsHueAutomation(Automation):
     Class provides an abstract instance of Automation to interface with the Philips Hue service.
     """
 
-    def is_authenticated(self):
-        """
-        Function will return current connection state to the service provider
+    def __init__(self, hub_ip):
 
-        :return: boolean
-        """
-        raise NotImplementedError("Must implement abstract method")
+        self.username = Data.Load("hue_username")
+        self.hub_ip = hub_ip
 
-    def authenticate(self):
-        """
-        Function will authenticate with the service provder and return boolean successful
-
-        :return: boolean
-        """
-        raise NotImplementedError("Must implement abstract method")
-
-    def light_groups(self):
-        """
-        Function will return a list of all the light groups for the authenticated account
-
-        :return: list
-        """
-        raise NotImplementedError("Must implement abstract method")
+        self.p_light_groups = None
+        self.bridge = None
+        self.authenticate()
+        self.p_name = "Philips Hue" # This cannot change. There are quite a few things keying off this name
 
     @property
-    def group_state(self, **kwargs):
-        """
-        Function will return the state of the group
+    def name(self):
+        return self.p_name
 
-        :return:
-        """
-        raise NotImplementedError("Must implement abstract method")
+    def has_username(self):
+        if self.username:
+            return True
+        return False
 
-    def change_group_state(self, **kwargs):
-        """
-        Function will change the state of the selected light group and return boolean successful.
+    def is_authenticated(self):
+        try:
+            self.bridge()
+            return True
+        except:
+            return False
 
-        :param kwargs:
-        :return: boolean
-        """
-        raise NotImplementedError("Must implement abstract method")
+    def authenticate(self):
+        # Data.Save("hue_username", None)
+        if not self.username:
+            try:
+                self.username = create_new_username(self.hub_ip)
+            except:
+                pass
+            Data.Save("hue_username", self.username)
+        self.bridge = Bridge(self.hub_ip, self.username)
+
+    def light_groups(self):
+        self.p_light_groups = list()
+        groups = self.bridge.groups()
+        for group_id in groups:
+            g = dict()
+            if groups[group_id]['lights']:
+                g['name'] = groups[group_id]['name']
+                g['id'] = group_id
+                self.p_light_groups.append(g)
+        return self.p_light_groups
+
+    def change_group_state(self, lights, powered=False, dim=False):
+        if dim:
+            brightness = 0
+        else:
+            brightness = 255
+
+        for light in lights:
+            Log(self.bridge.groups[light]())
+            self.bridge.groups[light].action(on=powered, bri=brightness)
