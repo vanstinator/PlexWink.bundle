@@ -41,8 +41,11 @@ class WinkAutomation(Automation):
         r = requests.post(self.service + "/oauth2/token/", json=auth_string)
 
         data = json.loads(r.text)
-        self.access_token = data['access_token']
-        self.auth_header = {'Authorization': 'Bearer ' + self.access_token}
+        try:
+            self.access_token = data['access_token']
+            self.auth_header = {'Authorization': 'Bearer ' + self.access_token}
+        except KeyError:
+            Log('Error retrieving auth token for Wink')
 
     def light_groups(self):
         """
@@ -50,17 +53,24 @@ class WinkAutomation(Automation):
         :return: list[dict()]
         """
         self.p_light_groups = list()
-        r = requests.get(self.service + "/users/me/groups", headers=self.auth_header)
-        json_object = json.loads(r.text)
-        for group in json_object['data']:
-            g = dict()
-            if group['members']:
-                g['name'] = group['name']
-                g['id'] = group['group_id']
-                self.p_light_groups.append(g)
+        try:
+            r = requests.get(self.service + "/users/me/groups", headers=self.auth_header)
+            json_object = json.loads(r.text)
+            for group in json_object['data']:
+                g = dict()
+                if group['members']:
+                    g['name'] = group['name']
+                    g['id'] = group['group_id']
+                    self.p_light_groups.append(g)
+        except ValueError:
+            Log("No json values were found for Wink groups")
         return self.p_light_groups
 
-    def change_group_state(self, powered, brightness, lights):
+    def change_group_state(self, lights, powered=False, dim=False):
+        if dim:
+            brightness = 0
+        else:
+            brightness = 100
         state_string = {'desired_state': {'brightness': brightness, 'powered': powered}}
         for group_id in lights:
             requests.post(self.service + "/groups/" + group_id + "/activate", json=state_string, headers=self.auth_header)

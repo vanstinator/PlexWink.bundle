@@ -38,10 +38,12 @@ class Automation(object):
         return
 
     @abc.abstractmethod
-    def change_group_state(self, **kwargs):
+    def change_group_state(self, powered=False, dim=False, **kwargs):
         """
         Function will change the state of the selected light group and return boolean successful.
 
+        :param powered:
+        :param dim:
         :param kwargs:
         :return: boolean
         """
