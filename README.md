@@ -1,7 +1,5 @@
 # Plex Wink
 
-## This is a development branch that will contain early support for Philips Hue as well as v2 of the Wink api. Features will be unstable until moved to master. Please take this into consideration when installing this branch
-
 PlexWink is a Plex Channel that is designed to give Plex control of your home's smart lighting capabilities. The channel will monitor your Plex server for play criteria that you set up with the channel. If any of the criteria are met PlexWink will turn your lights off when Plex is playing a media item and will turn them back on when you are finished.
 
 The channel logic is designed around the concept of a room. A room is just a collection of lights and clients. If you have multiple rooms in your home where you use Plex the channel supports that too! PlexWink can create and store as many rooms as one needs.
