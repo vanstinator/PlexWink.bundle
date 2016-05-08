@@ -71,8 +71,9 @@ def MainMenu(header=NAME, message=""):
         oc.add(DirectoryObject(key=Callback(EditRoom, room_uuid=room_uuid), title=room['name']))
 
     # This function is specific to Hue
-    if not automation_services[hue.name].has_username():
-        oc.add(DirectoryObject(key=Callback(ConnectHueBridge), title="Press button on Hue hub and then click here"))
+    if(Prefs['USE_HUE']):
+        if not automation_services[hue.name].has_username():
+            oc.add(DirectoryObject(key=Callback(ConnectHueBridge), title="Press button on Hue hub and then click here"))
 
     for name, service in automation_services.iteritems():
         if not service.is_authenticated():
@@ -225,14 +226,17 @@ def ValidatePrefs():
 
     automation_services = dict()
 
-    wink = WinkAutomation(Prefs['WINK_CLIENT_ID'], Prefs['WINK_CLIENT_SECRET'], Prefs['WINK_USERNAME'], Prefs['WINK_PASSWORD'])
-    hue = PhilipsHueAutomation(Prefs['HUE_IP_ADDRESS'])
+    if(Prefs['USE_WINK']):
+        wink = WinkAutomation(Prefs['WINK_CLIENT_ID'], Prefs['WINK_CLIENT_SECRET'], Prefs['WINK_USERNAME'],
+                              Prefs['WINK_PASSWORD'])
+        automation_services[wink.name] = wink
 
-    automation_services[wink.name] = wink
-    automation_services[hue.name] = hue
+    if(Prefs['USE_HUE']):
+        hue = PhilipsHueAutomation(Prefs['HUE_IP_ADDRESS'])
+        automation_services[hue.name] = hue
 
     for name, service in automation_services.iteritems():
-        Log(name + ' connection status is ' + str(wink.is_authenticated()))
+        Log(name + ' connection status is ' + str(service.is_authenticated()))
 
 
 def run_websocket_watcher():

@@ -20,6 +20,12 @@
     "default": "32400"
   },
   {
+    "id": "USE_WINK",
+    "label": "Enable Wink",
+    "type": "bool",
+    "default": "false"
+  },
+  {
     "id": "WINK_USERNAME",
     "label": "Wink Login",
     "type": "text",
@@ -44,6 +50,12 @@
     "label": "Wink Client Secret",
     "type": "text",
     "default": "WINK_CLIENT_SECRET"
+  },
+  {
+    "id": "USE_HUE",
+    "label": "Enable Philips Hue",
+    "type": "bool",
+    "default": "false"
   },
   {
     "id": "HUE_IP_ADDRESS",
