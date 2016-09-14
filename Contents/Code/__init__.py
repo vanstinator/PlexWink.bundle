@@ -65,14 +65,15 @@ def MainMenu(header=NAME, message=""):
         oc.add(InputDirectoryObject(key=Callback(CreateRoom), title='Create a Room', prompt='Please enter a room name'))
 
     if Client.Product == 'Plex Web' and not ROOM_HANDLER.rooms:
-        oc.add(DirectoryObject(key=Callback(MainMenu), title='You\'re using Plex Web. Please type a room name into the search field to add your first room.'))
+        oc.add(DirectoryObject(key=Callback(MainMenu), title='You\'re using Plex Web. Please type a room name into the search field and hit enter to add your first room.'))
 
     for room_uuid, room in ROOM_HANDLER.rooms.iteritems():
         oc.add(DirectoryObject(key=Callback(EditRoom, room_uuid=room_uuid), title=room['name']))
 
     # This function is specific to Hue
-    if not automation_services[hue.name].has_username():
-        oc.add(DirectoryObject(key=Callback(ConnectHueBridge), title="Press button on Hue hub and then click here"))
+    if is_hue_enabled():
+        if not automation_services[hue.name].has_username():
+            oc.add(DirectoryObject(key=Callback(ConnectHueBridge), title="Press button on Hue hub and then click here"))
 
     for name, service in automation_services.iteritems():
         if not service.is_authenticated():
@@ -228,11 +229,14 @@ def ValidatePrefs():
     wink = WinkAutomation(Prefs['WINK_CLIENT_ID'], Prefs['WINK_CLIENT_SECRET'], Prefs['WINK_USERNAME'], Prefs['WINK_PASSWORD'])
     hue = PhilipsHueAutomation(Prefs['HUE_IP_ADDRESS'])
 
-    automation_services[wink.name] = wink
-    automation_services[hue.name] = hue
+    if is_wink_enabled():
+        automation_services[wink.name] = wink
+	
+    if is_hue_enabled():
+        automation_services[hue.name] = hue
 
     for name, service in automation_services.iteritems():
-        Log(name + ' connection status is ' + str(wink.is_authenticated()))
+        Log(name + ' connection status is ' + str(service.is_authenticated()))
 
 
 def run_websocket_watcher():
@@ -260,6 +264,17 @@ def toggle_socket_thread():
     else:
         Log('Opening websocket thread')
         threading.Thread(target=run_websocket_watcher, name=THREAD_WEBSOCKET).start()
+
+
+def is_hue_enabled():
+    return Prefs['HUE_IP_ADDRESS'] != "HUE_IP_ADDRESS"
+
+
+def is_wink_enabled():
+    return Prefs['WINK_USERNAME'] != "WINK_USERNAME"\
+           and Prefs['WINK_PASSWORD'] != "WINK_PASSWORD"\
+           and Prefs['WINK_CLIENT_ID'] != "WINK_CLIENT_ID"\
+           and Prefs['WINK_CLIENT_SECRET'] != "WINK_CLIENT_SECRET"
 
 
 # TODO rewrite logic
@@ -336,7 +351,7 @@ class Plex:
         global PLEX_ACCESS_TOKEN
 
         HEADERS = {'X-Plex-Product': 'Automating Home Lighting',
-                   'X-Plex-Version': '3.1.0',
+                   'X-Plex-Version': '3.1.1',
                    'X-Plex-Client-Identifier': 'PlexWink',
                    'X-Plex-Device': 'PC',
                    'X-Plex-Device-Name': 'PlexWink'}
@@ -372,5 +387,5 @@ class Plex:
 
     def get_plex_devices(self):
         Log('Requesting devices from Plex')
-        return XML.ElementFromURL(url="https://www.plex.tv/devices.xml?X-Plex-Token=" + PLEX_ACCESS_TOKEN,
+        return XML.ElementFromURL(url="https://plex.tv/devices.xml?X-Plex-Token=" + PLEX_ACCESS_TOKEN,
                                   headers=HEADERS, cacheTime=360)
